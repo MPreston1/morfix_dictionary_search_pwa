@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Milon — Morfix Search</title>
+<title>Milon — Morfix &amp; Pealim</title>
 <meta name="theme-color" content="#1B2A4A" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -36,7 +36,7 @@
   }
 
   .shell {
-    max-width: 760px;
+    max-width: 1180px;
     margin: 0 auto;
     padding: 28px 20px 80px;
   }
@@ -85,7 +85,7 @@
   form.search-row {
     display: flex;
     gap: 10px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   input[type="text"] {
@@ -114,14 +114,22 @@
   button.go:hover { background: var(--ink-soft); }
   button.go:disabled { opacity: 0.5; cursor: default; }
 
-  .status-line {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--ink-soft);
-    min-height: 1.2em;
-    margin-bottom: 20px;
+  .dict-toggle-row {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 6px;
   }
-  .status-line.error { color: var(--error); }
+  .dict-toggle-row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+  }
+  .dict-toggle-row input { cursor: pointer; }
 
   .gloss-toggle {
     display: flex;
@@ -130,7 +138,7 @@
     font-family: var(--font-body);
     font-size: 0.85rem;
     color: var(--ink-soft);
-    margin-bottom: 10px;
+    margin-bottom: 20px;
     cursor: pointer;
     user-select: none;
   }
@@ -141,9 +149,15 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
-  .status-row .status-line { margin-bottom: 0; }
+  .status-line {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    min-height: 1.2em;
+  }
+  .status-line.error { color: var(--error); }
 
   .link-button {
     background: none;
@@ -158,7 +172,35 @@
   }
   .link-button:hover { color: var(--ink); }
 
-  dialog#raw-dialog {
+  .dict-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .dict-columns { grid-template-columns: 1fr; }
+  }
+  .dict-column { min-width: 0; }
+  .dict-column-header {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    border-bottom: 2px solid var(--brass-dim);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+  }
+  .dict-column-header .heb {
+    color: var(--brass);
+    font-size: 0.9rem;
+    margin-inline-start: 8px;
+  }
+  .dict-results {
+    max-height: 75vh;
+    overflow-y: auto;
+    padding-inline-end: 6px;
+  }
+
+  dialog#raw-dialog, dialog#settings-dialog {
     border: none;
     border-radius: 8px;
     padding: 0;
@@ -166,13 +208,15 @@
     width: 92%;
     max-height: 80vh;
     color: var(--ink);
+    font-family: var(--font-body);
   }
-  dialog#raw-dialog::backdrop { background: rgba(27, 42, 74, 0.45); }
-  #raw-dialog .dialog-inner { padding: 20px; display: flex; flex-direction: column; max-height: 80vh; }
-  #raw-dialog h2 {
+  dialog#settings-dialog { max-width: 460px; }
+  dialog#raw-dialog::backdrop, dialog#settings-dialog::backdrop { background: rgba(27, 42, 74, 0.45); }
+  .dialog-inner { padding: 20px 24px; display: flex; flex-direction: column; max-height: 80vh; }
+  .dialog-inner h2 {
     font-family: var(--font-display);
     margin: 0 0 14px;
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     border-bottom: 2px solid var(--brass-dim);
     padding-bottom: 10px;
   }
@@ -190,7 +234,46 @@
     text-align: left;
     margin: 0;
   }
-  #raw-dialog .dialog-actions { margin-top: 14px; }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .field input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .field .help {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 5px;
+    line-height: 1.4;
+  }
+  .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .dialog-actions button {
+    font-family: var(--font-body);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .dialog-actions button.primary { background: var(--ink); color: var(--paper-card); border-color: var(--ink); }
 
   .entry-card {
     background: var(--paper-card);
@@ -200,7 +283,6 @@
     position: relative;
     overflow: hidden;
   }
-
   .entry-tab {
     position: absolute;
     top: 0;
@@ -215,7 +297,6 @@
     border-bottom-right-radius: 6px;
   }
   .entry-tab:dir(rtl) { border-bottom-left-radius: 0; border-bottom-right-radius: 6px; }
-
   .entry-body { padding: 20px 22px; }
 
   .headword-row {
@@ -225,13 +306,11 @@
     flex-wrap: wrap;
     margin-bottom: 4px;
   }
-
   .headword {
     font-family: var(--font-display);
     font-size: 1.6rem;
     font-weight: 600;
   }
-
   .pos-tag {
     font-family: var(--font-mono);
     font-size: 0.72rem;
@@ -252,11 +331,7 @@
     margin: 14px 0 6px;
   }
 
-  ul.sense-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
+  ul.sense-list { list-style: none; margin: 0; padding: 0; }
   ul.sense-list li {
     padding: 6px 0;
     border-top: 1px solid var(--line);
@@ -266,17 +341,8 @@
     align-items: baseline;
   }
   ul.sense-list li:first-child { border-top: none; }
-
-  .sense-display {
-    font-family: var(--font-display);
-    font-size: 1.05rem;
-  }
-  .gloss-sublist {
-    list-style: none;
-    margin: 4px 0 0;
-    padding: 0;
-    flex-basis: 100%;
-  }
+  .sense-display { font-family: var(--font-display); font-size: 1.05rem; }
+  .gloss-sublist { list-style: none; margin: 4px 0 0; padding: 0; flex-basis: 100%; }
   .sense-gloss {
     font-family: var(--font-body);
     font-size: 0.9rem;
@@ -317,67 +383,106 @@
     color: var(--ink-soft);
     padding: 60px 20px;
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
 
-  dialog#settings-dialog {
-    border: none;
-    border-radius: 8px;
-    padding: 0;
-    max-width: 460px;
-    width: 90%;
-    color: var(--ink);
-    font-family: var(--font-body);
-  }
-  dialog#settings-dialog::backdrop { background: rgba(27, 42, 74, 0.45); }
-  .dialog-inner { padding: 24px; }
-  .dialog-inner h2 {
-    font-family: var(--font-display);
-    margin-top: 0;
-    font-size: 1.3rem;
-    border-bottom: 2px solid var(--brass-dim);
-    padding-bottom: 10px;
-  }
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block;
+  /* ---------- Pealim-specific ---------- */
+  .pealim-root {
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--ink-soft);
-    margin-bottom: 5px;
+    margin-bottom: 6px;
   }
-  .field input {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 4px;
+  .pealim-forms-list { list-style: none; margin: 10px 0 0; padding: 0; }
+  .pealim-forms-list li { padding: 6px 0; border-top: 1px solid var(--line); }
+  .pealim-forms-list li:first-child { border-top: none; }
+  .pealim-form-hebrew { font-family: var(--font-display); font-size: 1.05rem; }
+  .pealim-form-transcription {
     font-family: var(--font-mono);
-    font-size: 0.85rem;
-  }
-  .field .help {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--ink-soft);
-    margin-top: 5px;
-    line-height: 1.4;
+    margin-inline-start: 6px;
   }
-  .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 8px;
+  .pealim-form-meaning { display: block; font-size: 0.85rem; color: var(--ink-soft); margin-top: 2px; }
+  .pealim-form-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-inline-end: 6px;
   }
-  .dialog-actions button {
+
+  .conj-toggle-btn {
+    margin-top: 14px;
     font-family: var(--font-body);
-    padding: 8px 16px;
+    font-size: 0.85rem;
+    padding: 7px 16px;
     border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    border: 1px solid var(--line);
+    border: 1px solid var(--brass-dim);
     background: var(--paper);
+    cursor: pointer;
+    color: var(--ink);
   }
-  .dialog-actions button.primary { background: var(--ink); color: var(--paper-card); border-color: var(--ink); }
+  .conj-toggle-btn:hover { border-color: var(--brass); color: var(--brass); }
+  .conj-toggle-btn:disabled { opacity: 0.6; cursor: default; }
+
+  .conj-table-wrap { margin-top: 14px; overflow-x: auto; }
+  .conj-table-wrap table.conjugation-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    direction: rtl;
+  }
+  .conj-table-wrap th, .conj-table-wrap td {
+    border: 1px solid var(--line);
+    padding: 6px 8px;
+    vertical-align: top;
+    text-align: center;
+  }
+  .conj-table-wrap thead th {
+    background: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+  .conj-table-wrap tbody th {
+    background: var(--paper);
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .conj-table-wrap .menukad { font-family: var(--font-display); font-size: 1.05rem; }
+  .conj-table-wrap .chaser { color: var(--ink-soft); font-size: 0.85em; }
+  .conj-table-wrap .transcription {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    direction: ltr;
+  }
+  .conj-table-wrap .meaning {
+    margin-top: 3px;
+    font-size: 0.8rem;
+    direction: ltr;
+    text-align: left;
+  }
+  .conj-table-wrap .meaning em { font-style: italic; color: var(--ink-soft); }
+  .conj-table-wrap .meaning strong { color: var(--ink); }
+  .conj-table-wrap .aux-forms {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: var(--brass);
+    direction: ltr;
+    text-align: left;
+    border-top: 1px dashed var(--brass-dim);
+    padding-top: 3px;
+  }
+  .conj-table-wrap .audio-play { cursor: pointer; margin-inline-end: 3px; }
+  .conj-table-wrap .audio-play:hover { opacity: 0.6; }
+  .pealim-forms-list .audio-play, .headword-row .audio-play { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -391,35 +496,57 @@
     <input type="text" id="search-input" placeholder="Type a Hebrew or English word…" autocomplete="off" autofocus />
     <button class="go" type="submit" id="go-button">Search</button>
   </form>
+
+  <div class="dict-toggle-row">
+    <label><input type="checkbox" id="search-morfix" checked /> Morfix</label>
+    <label><input type="checkbox" id="search-pealim" checked /> Pealim</label>
+  </div>
   <label class="gloss-toggle">
     <input type="checkbox" id="show-gloss" />
-    Show secondary translations
+    Show secondary translations (Morfix)
   </label>
-  <div class="status-row">
-    <div class="status-line" id="status-line"></div>
-    <button type="button" class="link-button" id="view-raw-link" hidden>View raw response</button>
-  </div>
 
-  <main id="results">
-    <div class="empty-state">Search a word to see its entry.</div>
-  </main>
+  <div class="dict-columns">
+    <div class="dict-column">
+      <div class="dict-column-header">Morfix<span class="heb">מורפיקס</span></div>
+      <div class="status-row">
+        <div class="status-line" id="status-morfix"></div>
+        <button type="button" class="link-button" id="view-raw-morfix" hidden>View raw response</button>
+      </div>
+      <div class="dict-results" id="results-morfix">
+        <div class="empty-state">Search a word to see its entry.</div>
+      </div>
+    </div>
+
+    <div class="dict-column">
+      <div class="dict-column-header">Pealim<span class="heb">פְּעָלִים</span></div>
+      <div class="status-row">
+        <div class="status-line" id="status-pealim"></div>
+        <button type="button" class="link-button" id="view-raw-pealim" hidden>View raw response</button>
+      </div>
+      <div class="dict-results" id="results-pealim">
+        <div class="empty-state">Search a word to see its entry.</div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<audio id="audio-player" preload="none"></audio>
 
 <dialog id="settings-dialog">
   <div class="dialog-inner">
     <h2>Settings</h2>
     <div class="field">
-      <label for="firebase-key">Firebase Web API Key</label>
+      <label for="firebase-key">Firebase Web API Key (Morfix)</label>
       <input type="text" id="firebase-key" />
-      <div class="help">Used only to obtain an anonymous auth token, the same way Morfix's own frontend does. Not a secret — this key just identifies the Firebase project.</div>
+      <div class="help">Used only to obtain an anonymous auth token, the same way Morfix's own frontend does. Not a secret — this key just identifies the Firebase project. Pealim needs no key at all — it's a plain page fetch.</div>
     </div>
     <div class="field">
       <div class="help">
-        Search tries a direct request first, then falls back through a chain of public CORS proxies
-        (allorigins, codetabs, corsproxy.io). Only <code>Authorization</code> can be forwarded this way —
-        browsers never allow JS to set <code>Referer</code>/<code>Origin</code> on any fetch, through any proxy.
-        If Morfix's backend also enforces those, every attempt will fail with a 403 and you'll need a proxy you
-        control that hardcodes those headers server-side.
+        Both dictionaries search through a chain of CORS routes: corsproxy.io first, then a direct request, then
+        allorigins and codetabs as fallbacks. Morfix additionally requires its bearer token to be forwarded, which
+        only corsproxy.io and the direct attempt can carry — so if corsproxy.io ever goes down or gets rate-limited,
+        Morfix searches may fail even while Pealim's still work fine.
       </div>
     </div>
     <div class="dialog-actions">
@@ -431,7 +558,7 @@
 
 <dialog id="raw-dialog">
   <div class="dialog-inner">
-    <h2>Raw Morfix response</h2>
+    <h2 id="raw-dialog-title">Raw response</h2>
     <pre id="raw-json"></pre>
     <div class="dialog-actions">
       <button type="button" id="raw-close">Close</button>
@@ -445,7 +572,7 @@
 
   // ---------- PWA manifest (inline, no separate file needed) ----------
   const manifest = {
-    name: "Milon — Morfix Search",
+    name: "Milon — Morfix & Pealim",
     short_name: "Milon",
     start_url: ".",
     display: "standalone",
@@ -456,8 +583,6 @@
   const manifestBlob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
   document.getElementById("manifest-link").href = URL.createObjectURL(manifestBlob);
 
-  // Best-effort service worker for offline shell caching. Silently no-ops
-  // under file:// or unsupported environments.
   if ("serviceWorker" in navigator) {
     try {
       const swSource = `
@@ -476,8 +601,10 @@
     token: null,
     tokenExpiresAt: 0,
     showGloss: false,
-    lastResult: null,
-    lastRawData: null
+    searchMorfix: true,
+    searchPealim: true,
+    morfix: { lastResult: null, lastRaw: null },
+    pealim: { lastResult: null, lastRawHtml: null }
   };
 
   // ---------- Elements ----------
@@ -485,18 +612,25 @@
     form: document.getElementById("search-form"),
     input: document.getElementById("search-input"),
     goButton: document.getElementById("go-button"),
+    searchMorfixCheckbox: document.getElementById("search-morfix"),
+    searchPealimCheckbox: document.getElementById("search-pealim"),
     showGlossCheckbox: document.getElementById("show-gloss"),
-    viewRawLink: document.getElementById("view-raw-link"),
-    rawDialog: document.getElementById("raw-dialog"),
-    rawJson: document.getElementById("raw-json"),
-    rawClose: document.getElementById("raw-close"),
-    status: document.getElementById("status-line"),
-    results: document.getElementById("results"),
+    statusMorfix: document.getElementById("status-morfix"),
+    statusPealim: document.getElementById("status-pealim"),
+    viewRawMorfix: document.getElementById("view-raw-morfix"),
+    viewRawPealim: document.getElementById("view-raw-pealim"),
+    resultsMorfix: document.getElementById("results-morfix"),
+    resultsPealim: document.getElementById("results-pealim"),
     openSettings: document.getElementById("open-settings"),
     dialog: document.getElementById("settings-dialog"),
     firebaseKeyField: document.getElementById("firebase-key"),
     settingsSave: document.getElementById("settings-save"),
-    settingsCancel: document.getElementById("settings-cancel")
+    settingsCancel: document.getElementById("settings-cancel"),
+    rawDialog: document.getElementById("raw-dialog"),
+    rawDialogTitle: document.getElementById("raw-dialog-title"),
+    rawJson: document.getElementById("raw-json"),
+    rawClose: document.getElementById("raw-close"),
+    audioPlayer: document.getElementById("audio-player")
   };
 
   els.firebaseKeyField.value = state.firebaseKey;
@@ -508,91 +642,82 @@
   els.settingsCancel.addEventListener("click", () => els.dialog.close());
   els.settingsSave.addEventListener("click", () => {
     state.firebaseKey = els.firebaseKeyField.value.trim();
-    state.token = null; // force re-auth if key changed
+    state.token = null;
     els.dialog.close();
   });
 
-  // ---------- Auth ----------
-  async function getToken() {
-    const now = Date.now();
-    if (state.token && now < state.tokenExpiresAt) return state.token;
+  els.searchMorfixCheckbox.addEventListener("change", () => { state.searchMorfix = els.searchMorfixCheckbox.checked; });
+  els.searchPealimCheckbox.addEventListener("change", () => { state.searchPealim = els.searchPealimCheckbox.checked; });
+  els.showGlossCheckbox.addEventListener("change", () => {
+    state.showGloss = els.showGlossCheckbox.checked;
+    if (state.morfix.lastResult) renderMorfix(state.morfix.lastResult);
+  });
 
-    const resp = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(state.firebaseKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnSecureToken: true })
-      }
-    );
-    if (!resp.ok) {
-      throw new Error(`Firebase auth failed (${resp.status}). Check the Firebase API key in Settings.`);
-    }
-    const data = await resp.json();
-    state.token = data.idToken;
-    // expiresIn is seconds as a string; refresh a little early
-    const expiresInMs = (parseInt(data.expiresIn, 10) || 3600) * 1000;
-    state.tokenExpiresAt = now + expiresInMs - 60000;
-    return state.token;
-  }
+  els.rawClose.addEventListener("click", () => els.rawDialog.close());
+  els.viewRawMorfix.addEventListener("click", () => {
+    els.rawDialogTitle.textContent = "Raw Morfix response";
+    els.rawJson.textContent = state.morfix.lastRaw ? JSON.stringify(state.morfix.lastRaw, null, 2) : "(nothing to show)";
+    els.rawDialog.showModal();
+  });
+  els.viewRawPealim.addEventListener("click", () => {
+    els.rawDialogTitle.textContent = "Raw Pealim response (HTML)";
+    els.rawJson.textContent = state.pealim.lastRawHtml || "(nothing to show)";
+    els.rawDialog.showModal();
+  });
 
-  // ---------- Timeout helper ----------
+  // ---------- Timeout + auth helpers ----------
   function fetchWithTimeout(url, options, timeoutMs) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
   }
 
-  // Try a direct fetch, then a chain of public CORS proxies (each capped with
-  // its own timeout so one slow/dead proxy doesn't stall the whole search).
-  //
-  // IMPORTANT CAVEAT specific to Morfix: `Referer` and `Origin` are on the
-  // browser's forbidden-header list — JS can never set them on a fetch(),
-  // through any proxy, no matter what that proxy otherwise supports. So none
-  // of these attempts can spoof Referer/Origin the way Morfix's own frontend
-  // does; only `Authorization` can actually be sent. If Morfix's backend
-  // requires a matching Referer/Origin *in addition to* the bearer token,
-  // every attempt below will 403 regardless of proxy, and the only fix is a
-  // proxy you control that hardcodes those headers server-side.
-  async function fetchWithCorsFallback(url, authHeaders) {
-    // corsproxy.io goes first: it's the only proxy here that can actually
-    // forward the Authorization header Morfix requires, so it's the one
-    // that reliably succeeds. The others are kept as fallbacks in case
-    // corsproxy.io is rate-limited/down, or if Morfix ever stops requiring
-    // auth (unlikely, but cheap insurance).
+  async function getToken() {
+    const now = Date.now();
+    if (state.token && now < state.tokenExpiresAt) return state.token;
+    const resp = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(state.firebaseKey)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ returnSecureToken: true }) }
+    );
+    if (!resp.ok) throw new Error(`Firebase auth failed (${resp.status}). Check the Firebase API key in Settings.`);
+    const data = await resp.json();
+    state.token = data.idToken;
+    const expiresInMs = (parseInt(data.expiresIn, 10) || 3600) * 1000;
+    state.tokenExpiresAt = now + expiresInMs - 60000;
+    return state.token;
+  }
+
+  // ---------- Generic CORS fallback chain ----------
+  // corsproxy.io goes first: it's the only proxy here that can forward custom
+  // headers (needed for Morfix's Authorization). The others are fallbacks in
+  // case corsproxy.io is rate-limited/down. `parseAndValidate` decides what
+  // counts as a genuine success for a given site — simple passthrough proxies
+  // (allorigins, codetabs) return their own 200 OK even when the upstream
+  // body is an error page, so HTTP status alone isn't trustworthy.
+  async function fetchWithCorsFallback(url, { headers = {}, parseAndValidate }) {
     const attempts = [
-      { name: 'corsproxy.io', fetch: () => fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, { headers: authHeaders }, 9000) },
-      { name: 'direct',       fetch: () => fetchWithTimeout(url, { headers: authHeaders }, 8000) },
+      { name: 'corsproxy.io', fetch: () => fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, { headers }, 9000) },
+      { name: 'direct',       fetch: () => fetchWithTimeout(url, { headers }, 8000) },
       { name: 'allorigins',   fetch: () => fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, {}, 9000) },
       { name: 'codetabs',     fetch: () => fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, {}, 9000) },
     ];
-
     const errors = [];
     for (const attempt of attempts) {
       try {
         const resp = await attempt.fetch();
-        if (!resp.ok) {
-          errors.push(`${attempt.name}: HTTP ${resp.status}`);
-          continue;
-        }
-        // Simple passthrough proxies (allorigins, codetabs) return their own
-        // 200 OK even when the upstream body is Morfix's own error payload
-        // (e.g. {"message":"Forbidden"}) — usually because they don't forward
-        // the Authorization header at all. So a 200 here doesn't mean success;
-        // check the shape of the body itself before trusting it.
-        let data;
+        if (!resp.ok) { errors.push(`${attempt.name}: HTTP ${resp.status}`); continue; }
+        let result;
         try {
-          data = await resp.json();
-        } catch (parseErr) {
-          errors.push(`${attempt.name}: response wasn't valid JSON`);
+          result = await parseAndValidate(resp);
+        } catch (e) {
+          errors.push(`${attempt.name}: ${e.message}`);
           continue;
         }
-        const looksLikeMorfix = data && ("ResultType" in data || "TranslationType" in data);
-        if (!looksLikeMorfix) {
-          errors.push(`${attempt.name}: got "${data && data.message ? data.message : JSON.stringify(data).slice(0, 60)}" — not a Morfix payload, likely missing auth`);
+        if (result === null || result === undefined) {
+          errors.push(`${attempt.name}: response didn't look valid`);
           continue;
         }
-        return { data, via: attempt.name };
+        return { data: result, via: attempt.name };
       } catch (err) {
         errors.push(`${attempt.name}: ${err.name === 'AbortError' ? 'timed out' : err.message}`);
       }
@@ -600,62 +725,50 @@
     throw new Error(`All fetch attempts failed — ${errors.join('; ')}`);
   }
 
-  // ---------- Morfix fetch ----------
+  // ---------- Morfix ----------
   async function fetchMorfix(word, { retriedAuth = false } = {}) {
     const token = await getToken();
     const targetUrl =
       "https://backend.morfix.com/TranslationHebrew/TranslationService.svc/GetTranslation/" +
       encodeURIComponent(word);
-
-    // allorigins/codetabs are simple GET-only passthroughs that don't forward
-    // custom request headers at all, so Authorization only has a chance of
-    // reaching Morfix via the 'direct' or 'corsproxy.io' attempts.
     const authHeaders = { "Authorization": `Bearer ${token}`, "Accept": "application/json" };
 
     let data, via;
     try {
-      ({ data, via } = await fetchWithCorsFallback(targetUrl, authHeaders));
+      ({ data, via } = await fetchWithCorsFallback(targetUrl, {
+        headers: authHeaders,
+        parseAndValidate: async resp => {
+          const parsed = await resp.json();
+          return (parsed && ("ResultType" in parsed || "TranslationType" in parsed)) ? parsed : null;
+        }
+      }));
     } catch (err) {
       if (!retriedAuth) {
-        // The token may simply be stale; try once more with a fresh one
-        // before giving up and surfacing the full error chain.
         state.token = null;
         return fetchMorfix(word, { retriedAuth: true });
       }
       throw new Error(`Could not reach Morfix through any route. ${err.message}`);
     }
-
-    els.status.dataset.via = via; // surfaced in the UI so you can see which route worked
-    return data;
+    return { data, via };
   }
 
-  // ---------- Parsing (mirrors the agreed Entry/SearchResult schema) ----------
   function flattenMeanings(meaningGroups) {
     const result = [];
     for (const group of meaningGroups || []) {
-      // Morfix nests near-synonyms together within one group (e.g. "Hello!"
-      // and "Goodbye" both under the שלום sense, or "peacefully" and "at
-      // peace" both under בשלום) — they belong on one line, not split into
-      // separate senses. But each item's own secondary gloss belongs to
-      // *that* item specifically, so keep the pairing intact rather than
-      // flattening all glosses into one combined string.
       const items = group
         .map(item => ({ displayText: item.DisplayText || "", gloss: item.Translation || "" }))
         .filter(it => it.displayText || it.gloss);
       const displayText = items.map(it => it.displayText).filter(Boolean).join(", ");
       const definition = group.map(item => item.Meaning).filter(Boolean).join("; ");
-      if (displayText || definition) {
-        result.push({ displayText, definition, items });
-      }
+      if (displayText || definition) result.push({ displayText, definition, items });
     }
     return result;
   }
 
   function parseMorfixResponse(data) {
-    const isToEnglish = data.TranslationType === "ToEnglish"; // query was Hebrew
+    const isToEnglish = data.TranslationType === "ToEnglish";
     const headwordLanguage = isToEnglish ? "hebrew" : "english";
     const matched = data.ResultType === "Match";
-
     const entries = (data.Words || []).map(word => ({
       id: word.ID || "",
       headwordLanguage,
@@ -663,15 +776,16 @@
       senses: flattenMeanings(word.InputLanguageMeanings),
       translations: flattenMeanings(word.OutputLanguageMeanings)
     }));
-
-    const corrections = (data.CorrectionList || [])
-      .map(item => item.Word)
-      .filter(Boolean);
-
+    const corrections = (data.CorrectionList || []).map(item => item.Word).filter(Boolean);
     return { query: data.Query || "", matched, entries, corrections };
   }
 
-  // ---------- Rendering ----------
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
   function senseListHtml(senses, dir) {
     if (!senses.length) return "";
     return `<ul class="sense-list" dir="${dir}">${senses.map(s => {
@@ -686,12 +800,9 @@
     }).join("")}</ul>`;
   }
 
-  function entryCardHtml(entry) {
+  function morfixEntryCardHtml(entry) {
     const tabLabel = entry.headwordLanguage === "hebrew" ? "HEB → ENG" : "ENG → HEB";
     const headword = entry.senses[0] ? entry.senses[0].displayText : "";
-    // Direction is fixed per section by which language it actually holds,
-    // not sniffed from content — an idiom like "בשלום - safely" living in
-    // the English translations list should still read left-to-right overall.
     const sourceDir = entry.headwordLanguage === "hebrew" ? "rtl" : "ltr";
     const translationDir = entry.headwordLanguage === "hebrew" ? "ltr" : "rtl";
     return `
@@ -708,7 +819,7 @@
       </div>`;
   }
 
-  function suggestionsHtml(result) {
+  function morfixSuggestionsHtml(result) {
     return `
       <div class="suggestions-box">
         <div class="section-label">No exact match for "${escapeHtml(result.query)}" — did you mean</div>
@@ -718,66 +829,303 @@
       </div>`;
   }
 
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, c => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-  }
-
-  function render(result) {
+  function renderMorfix(result) {
     if (result.matched && result.entries.length) {
-      els.results.innerHTML = result.entries.map(entryCardHtml).join("");
+      els.resultsMorfix.innerHTML = result.entries.map(morfixEntryCardHtml).join("");
     } else if (result.corrections.length) {
-      els.results.innerHTML = suggestionsHtml(result);
-      els.results.querySelectorAll(".chip").forEach(chip => {
+      els.resultsMorfix.innerHTML = morfixSuggestionsHtml(result);
+      els.resultsMorfix.querySelectorAll(".chip").forEach(chip => {
         chip.addEventListener("click", () => {
           els.input.value = chip.dataset.word;
           doSearch(chip.dataset.word);
         });
       });
     } else {
-      els.results.innerHTML = `<div class="empty-state">No results for "${escapeHtml(result.query)}".</div>`;
+      els.resultsMorfix.innerHTML = `<div class="empty-state">No results for "${escapeHtml(result.query)}".</div>`;
     }
   }
 
-  // ---------- Search flow ----------
+  async function doMorfixSearch(word) {
+    els.statusMorfix.textContent = "Searching…";
+    els.statusMorfix.classList.remove("error");
+    try {
+      const { data, via } = await fetchMorfix(word);
+      state.morfix.lastRaw = data;
+      els.viewRawMorfix.hidden = false;
+      const result = parseMorfixResponse(data);
+      state.morfix.lastResult = result;
+      renderMorfix(result);
+      els.statusMorfix.textContent = `via ${via}`;
+    } catch (err) {
+      els.statusMorfix.textContent = err.message;
+      els.statusMorfix.classList.add("error");
+    }
+  }
+
+  // ---------- Pealim ----------
+  // Content here travels through third-party CORS proxies, which could in
+  // principle be compromised or return tampered HTML. Rather than trust and
+  // inject that HTML wholesale, we parse it into plain data (search results)
+  // or rebuild the conjugation table through an attribute/tag allowlist
+  // (sanitizeNode below) before anything reaches the live page.
+  function safeAudioUrl(url) {
+    return typeof url === "string" && /^https:\/\/audio\.pealim\.com\//.test(url) ? url : "";
+  }
+
+  async function fetchPealimPage(url) {
+    const { data, via } = await fetchWithCorsFallback(url, {
+      headers: {},
+      parseAndValidate: async resp => {
+        const text = await resp.text();
+        return /Hebrew conjugation tables|pealim\.com/i.test(text) ? text : null;
+      }
+    });
+    return { html: data, via };
+  }
+
+  function parsePealimSearchHtml(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const container = doc.querySelector(".results-by-verb");
+    const entries = [];
+    if (container) {
+      container.querySelectorAll(":scope > .verb-search-result").forEach(div => {
+        const dataDiv = div.querySelector(".verb-search-data");
+        if (!dataDiv) return;
+
+        const lemmaMenukad = dataDiv.querySelector(".verb-search-lemma .menukad");
+        const headword = lemmaMenukad ? lemmaMenukad.textContent.trim() : "";
+        const lemmaAudioEl = dataDiv.querySelector(".verb-search-lemma .audio-play");
+        const headwordAudio = lemmaAudioEl ? safeAudioUrl(lemmaAudioEl.getAttribute("data-audio")) : "";
+
+        const linkEl = dataDiv.querySelector(".verb-search-lemma a");
+        let dictUrl = "";
+        if (linkEl) {
+          try { dictUrl = new URL(linkEl.getAttribute("href"), "https://www.pealim.com").href; } catch (e) { /* ignore */ }
+        }
+
+        const rootEl = dataDiv.querySelector(".verb-search-root a");
+        const root = rootEl ? rootEl.textContent.trim() : "";
+
+        const posEl = dataDiv.querySelector(".verb-search-binyan");
+        let partOfSpeech = "";
+        if (posEl) {
+          const clone = posEl.cloneNode(true);
+          const label = clone.querySelector(".verb-search-label");
+          if (label) label.remove();
+          partOfSpeech = clone.textContent.trim();
+        }
+        const isVerb = /^verb/i.test(partOfSpeech);
+
+        const meaningEl = dataDiv.querySelector(".verb-search-meaning");
+        const meaning = meaningEl ? meaningEl.textContent.trim() : "";
+
+        const buttonEl = dataDiv.querySelector(".verb-search-button a");
+        const buttonLabel = buttonEl ? buttonEl.textContent.trim() : "";
+
+        const forms = [];
+        div.querySelectorAll(".verb-search-forms > .vf-search-result").forEach(f => {
+          const hebrewContainer = f.querySelector(".vf-search-hebrew");
+          if (!hebrewContainer) return;
+          const clone = hebrewContainer.cloneNode(true);
+          const transcriptionEl = clone.querySelector(".transcription");
+          const transcription = transcriptionEl ? transcriptionEl.textContent.trim() : "";
+          if (transcriptionEl) transcriptionEl.remove();
+          const audioEl = clone.querySelector(".audio-play");
+          if (audioEl) audioEl.remove();
+          const hebrewText = clone.textContent.trim();
+
+          const formAudioEl = f.querySelector(".audio-play");
+          const formAudioUrl = formAudioEl ? safeAudioUrl(formAudioEl.getAttribute("data-audio")) : "";
+          const tpgnEl = f.querySelector(".vf-search-tpgn");
+          const formMeaningEl = f.querySelector(".vf-search-meaning");
+          forms.push({
+            hebrew: hebrewText,
+            transcription,
+            audioUrl: formAudioUrl,
+            label: tpgnEl ? tpgnEl.textContent.trim() : "",
+            meaning: formMeaningEl ? formMeaningEl.textContent.trim() : ""
+          });
+        });
+
+        entries.push({
+          headword, headwordAudio, dictUrl, root, partOfSpeech, isVerb, meaning,
+          hasFullTable: /full conjugation|all forms/i.test(buttonLabel),
+          forms, tableNode: null, expanded: false
+        });
+      });
+    }
+    return { entries };
+  }
+
+  // Allowlist-based sanitizer: rebuilds only these tags/attributes from the
+  // fetched conjugation table, dropping everything else (scripts, images,
+  // links, event-handler attributes) even if a proxy tampered with the body.
+  const ALLOWED_TAGS = new Set(["table", "thead", "tbody", "tr", "th", "td", "div", "span", "b", "em", "strong"]);
+  const ALLOWED_ATTRS = {
+    table: ["class"], thead: [], tbody: [], tr: [],
+    th: ["rowspan", "colspan", "class"], td: ["rowspan", "colspan", "class"],
+    div: ["class", "id"], span: ["class", "data-audio"], b: [], em: [], strong: []
+  };
+
+  function sanitizeNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return document.createTextNode(node.textContent);
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+    const tag = node.tagName.toLowerCase();
+    if (!ALLOWED_TAGS.has(tag)) {
+      // Unwrap disallowed elements: keep their sanitized children, drop the wrapper.
+      const frag = document.createDocumentFragment();
+      node.childNodes.forEach(child => {
+        const cleaned = sanitizeNode(child);
+        if (cleaned) frag.appendChild(cleaned);
+      });
+      return frag;
+    }
+
+    const el = document.createElement(tag);
+    for (const attr of ALLOWED_ATTRS[tag] || []) {
+      if (!node.hasAttribute(attr)) continue;
+      let value = node.getAttribute(attr);
+      if (attr === "data-audio" && !safeAudioUrl(value)) continue;
+      el.setAttribute(attr, value);
+    }
+    node.childNodes.forEach(child => {
+      const cleaned = sanitizeNode(child);
+      if (cleaned) el.appendChild(cleaned);
+    });
+    return el;
+  }
+
+  function extractConjugationTableNode(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const table = doc.querySelector("table.conjugation-table");
+    if (!table) return null;
+    return sanitizeNode(table);
+  }
+
+  function pealimEntryCardHtml(entry, index) {
+    const formsHtml = entry.forms.length ? `<ul class="pealim-forms-list">${entry.forms.map(f => `
+      <li>
+        <div dir="rtl">
+          ${f.audioUrl ? `<span class="audio-play" data-audio="${escapeHtml(f.audioUrl)}">🔊</span>` : ""}
+          <span class="pealim-form-hebrew">${escapeHtml(f.hebrew)}</span>
+          ${f.transcription ? `<span class="pealim-form-transcription">${escapeHtml(f.transcription)}</span>` : ""}
+        </div>
+        <span class="pealim-form-meaning"><span class="pealim-form-label">${escapeHtml(f.label)}</span>${escapeHtml(f.meaning)}</span>
+      </li>`).join("")}</ul>` : "";
+
+    return `
+      <div class="entry-card">
+        <div class="entry-tab">${entry.isVerb ? "VERB" : "WORD"}</div>
+        <div class="entry-body">
+          <div class="headword-row" dir="rtl">
+            ${entry.headwordAudio ? `<span class="audio-play" data-audio="${escapeHtml(entry.headwordAudio)}">🔊</span>` : ""}
+            <span class="headword">${escapeHtml(entry.headword)}</span>
+            ${entry.partOfSpeech ? `<span class="pos-tag">${escapeHtml(entry.partOfSpeech)}</span>` : ""}
+          </div>
+          ${entry.root ? `<div class="pealim-root">Root: ${escapeHtml(entry.root)}</div>` : ""}
+          ${entry.meaning ? `<div class="sense-def" dir="ltr">${escapeHtml(entry.meaning)}</div>` : ""}
+          ${formsHtml}
+          ${entry.dictUrl ? `<button type="button" class="conj-toggle-btn" data-index="${index}">${entry.hasFullTable ? "View full conjugation" : "View all forms"}</button>
+          <div class="conj-table-wrap" data-index="${index}" hidden></div>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function renderPealim(result) {
+    if (result.entries.length) {
+      els.resultsPealim.innerHTML = result.entries.map((e, i) => pealimEntryCardHtml(e, i)).join("");
+    } else {
+      els.resultsPealim.innerHTML = `<div class="empty-state">No results.</div>`;
+    }
+  }
+
+  els.resultsPealim.addEventListener("click", async e => {
+    const audioEl = e.target.closest(".audio-play");
+    if (audioEl) {
+      const url = audioEl.getAttribute("data-audio");
+      if (url) { els.audioPlayer.src = url; els.audioPlayer.play().catch(() => {}); }
+      return;
+    }
+
+    const btn = e.target.closest(".conj-toggle-btn");
+    if (!btn) return;
+    const idx = Number(btn.dataset.index);
+    const entry = state.pealim.lastResult && state.pealim.lastResult.entries[idx];
+    if (!entry) return;
+    const wrap = els.resultsPealim.querySelector(`.conj-table-wrap[data-index="${idx}"]`);
+
+    if (entry.expanded) {
+      entry.expanded = false;
+      wrap.hidden = true;
+      btn.textContent = entry.hasFullTable ? "View full conjugation" : "View all forms";
+      return;
+    }
+
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = "Loading…";
+    try {
+      if (!entry.tableNode) {
+        const { html } = await fetchPealimPage(entry.dictUrl);
+        state.pealim.lastRawHtml = html;
+        els.viewRawPealim.hidden = false;
+        entry.tableNode = extractConjugationTableNode(html);
+      }
+      wrap.innerHTML = "";
+      if (entry.tableNode) {
+        wrap.appendChild(entry.tableNode.cloneNode(true));
+      } else {
+        wrap.textContent = "Couldn't find a conjugation table on that page.";
+      }
+      wrap.hidden = false;
+      entry.expanded = true;
+      btn.textContent = "Hide";
+    } catch (err) {
+      wrap.textContent = err.message;
+      wrap.hidden = false;
+    } finally {
+      btn.disabled = false;
+      if (btn.textContent === "Loading…") btn.textContent = originalLabel;
+    }
+  });
+
+  async function doPealimSearch(word) {
+    els.statusPealim.textContent = "Searching…";
+    els.statusPealim.classList.remove("error");
+    try {
+      const url = `https://www.pealim.com/search/?q=${encodeURIComponent(word)}`;
+      const { html, via } = await fetchPealimPage(url);
+      state.pealim.lastRawHtml = html;
+      els.viewRawPealim.hidden = false;
+      const result = parsePealimSearchHtml(html);
+      state.pealim.lastResult = result;
+      renderPealim(result);
+      els.statusPealim.textContent = `via ${via}`;
+    } catch (err) {
+      els.statusPealim.textContent = err.message;
+      els.statusPealim.classList.add("error");
+    }
+  }
+
+  // ---------- Search orchestration ----------
   async function doSearch(word) {
     word = word.trim();
     if (!word) return;
     els.goButton.disabled = true;
-    els.status.textContent = "Searching…";
-    els.status.classList.remove("error");
-    try {
-      const data = await fetchMorfix(word);
-      state.lastRawData = data;
-      els.viewRawLink.hidden = false;
-      const result = parseMorfixResponse(data);
-      state.lastResult = result;
-      render(result);
-      els.status.textContent = els.status.dataset.via ? `via ${els.status.dataset.via}` : "";
-    } catch (err) {
-      els.status.textContent = err.message;
-      els.status.classList.add("error");
-    } finally {
-      els.goButton.disabled = false;
-    }
+    const tasks = [];
+    if (state.searchMorfix) tasks.push(doMorfixSearch(word));
+    if (state.searchPealim) tasks.push(doPealimSearch(word));
+    await Promise.allSettled(tasks);
+    els.goButton.disabled = false;
   }
 
   els.form.addEventListener("submit", e => {
     e.preventDefault();
     doSearch(els.input.value);
   });
-
-  els.showGlossCheckbox.addEventListener("change", () => {
-    state.showGloss = els.showGlossCheckbox.checked;
-    if (state.lastResult) render(state.lastResult);
-  });
-
-  els.viewRawLink.addEventListener("click", () => {
-    els.rawJson.textContent = state.lastRawData ? JSON.stringify(state.lastRawData, null, 2) : "(nothing to show)";
-    els.rawDialog.showModal();
-  });
-  els.rawClose.addEventListener("click", () => els.rawDialog.close());
 })();
 </script>
 </body>
