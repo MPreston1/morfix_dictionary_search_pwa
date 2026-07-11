@@ -271,9 +271,19 @@
     font-family: var(--font-display);
     font-size: 1.05rem;
   }
+  .gloss-sublist {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    flex-basis: 100%;
+  }
   .sense-gloss {
     font-family: var(--font-body);
+    font-size: 0.9rem;
     color: var(--ink-soft);
+    padding: 2px 0 2px 14px;
+    border-inline-start: 2px solid var(--brass-dim);
+    margin-bottom: 2px;
   }
   .sense-def {
     font-family: var(--font-body);
@@ -626,12 +636,16 @@
       // Morfix nests near-synonyms together within one group (e.g. "Hello!"
       // and "Goodbye" both under the שלום sense, or "peacefully" and "at
       // peace" both under בשלום) — they belong on one line, not split into
-      // separate senses.
-      const displayText = group.map(item => item.DisplayText).filter(Boolean).join(", ");
+      // separate senses. But each item's own secondary gloss belongs to
+      // *that* item specifically, so keep the pairing intact rather than
+      // flattening all glosses into one combined string.
+      const items = group
+        .map(item => ({ displayText: item.DisplayText || "", gloss: item.Translation || "" }))
+        .filter(it => it.displayText || it.gloss);
+      const displayText = items.map(it => it.displayText).filter(Boolean).join(", ");
       const definition = group.map(item => item.Meaning).filter(Boolean).join("; ");
-      const gloss = group.map(item => item.Translation).filter(Boolean).join("; ");
       if (displayText || definition) {
-        result.push({ displayText, definition, gloss });
+        result.push({ displayText, definition, items });
       }
     }
     return result;
@@ -660,12 +674,16 @@
   // ---------- Rendering ----------
   function senseListHtml(senses, dir) {
     if (!senses.length) return "";
-    return `<ul class="sense-list" dir="${dir}">${senses.map(s => `
+    return `<ul class="sense-list" dir="${dir}">${senses.map(s => {
+      const glossItems = state.showGloss ? (s.items || []).filter(it => it.gloss) : [];
+      return `
       <li>
         <span class="sense-display">${escapeHtml(s.displayText)}</span>
-        ${state.showGloss && s.gloss ? `<span class="sense-gloss">— ${escapeHtml(s.gloss)}</span>` : ""}
         ${s.definition ? `<span class="sense-def">${escapeHtml(s.definition)}</span>` : ""}
-      </li>`).join("")}</ul>`;
+        ${glossItems.length ? `<ul class="gloss-sublist">${glossItems.map(it => `
+          <li class="sense-gloss">${escapeHtml(it.displayText)} — ${escapeHtml(it.gloss)}</li>`).join("")}</ul>` : ""}
+      </li>`;
+    }).join("")}</ul>`;
   }
 
   function entryCardHtml(entry) {
