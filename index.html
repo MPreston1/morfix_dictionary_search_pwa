@@ -136,6 +136,62 @@
   }
   .gloss-toggle input { cursor: pointer; }
 
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .status-row .status-line { margin-bottom: 0; }
+
+  .link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--brass);
+    text-decoration: underline;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .link-button:hover { color: var(--ink); }
+
+  dialog#raw-dialog {
+    border: none;
+    border-radius: 8px;
+    padding: 0;
+    max-width: 640px;
+    width: 92%;
+    max-height: 80vh;
+    color: var(--ink);
+  }
+  dialog#raw-dialog::backdrop { background: rgba(27, 42, 74, 0.45); }
+  #raw-dialog .dialog-inner { padding: 20px; display: flex; flex-direction: column; max-height: 80vh; }
+  #raw-dialog h2 {
+    font-family: var(--font-display);
+    margin: 0 0 14px;
+    font-size: 1.15rem;
+    border-bottom: 2px solid var(--brass-dim);
+    padding-bottom: 10px;
+  }
+  #raw-json {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    direction: ltr;
+    text-align: left;
+    margin: 0;
+  }
+  #raw-dialog .dialog-actions { margin-top: 14px; }
+
   .entry-card {
     background: var(--paper-card);
     border: 1px solid var(--line);
@@ -329,7 +385,10 @@
     <input type="checkbox" id="show-gloss" />
     Show secondary translations
   </label>
-  <div class="status-line" id="status-line"></div>
+  <div class="status-row">
+    <div class="status-line" id="status-line"></div>
+    <button type="button" class="link-button" id="view-raw-link" hidden>View raw response</button>
+  </div>
 
   <main id="results">
     <div class="empty-state">Search a word to see its entry.</div>
@@ -356,6 +415,16 @@
     <div class="dialog-actions">
       <button type="button" id="settings-cancel">Cancel</button>
       <button type="button" id="settings-save" class="primary">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="raw-dialog">
+  <div class="dialog-inner">
+    <h2>Raw Morfix response</h2>
+    <pre id="raw-json"></pre>
+    <div class="dialog-actions">
+      <button type="button" id="raw-close">Close</button>
     </div>
   </div>
 </dialog>
@@ -397,7 +466,8 @@
     token: null,
     tokenExpiresAt: 0,
     showGloss: false,
-    lastResult: null
+    lastResult: null,
+    lastRawData: null
   };
 
   // ---------- Elements ----------
@@ -406,6 +476,10 @@
     input: document.getElementById("search-input"),
     goButton: document.getElementById("go-button"),
     showGlossCheckbox: document.getElementById("show-gloss"),
+    viewRawLink: document.getElementById("view-raw-link"),
+    rawDialog: document.getElementById("raw-dialog"),
+    rawJson: document.getElementById("raw-json"),
+    rawClose: document.getElementById("raw-close"),
     status: document.getElementById("status-line"),
     results: document.getElementById("results"),
     openSettings: document.getElementById("open-settings"),
@@ -657,6 +731,8 @@
     els.status.classList.remove("error");
     try {
       const data = await fetchMorfix(word);
+      state.lastRawData = data;
+      els.viewRawLink.hidden = false;
       const result = parseMorfixResponse(data);
       state.lastResult = result;
       render(result);
@@ -678,6 +754,12 @@
     state.showGloss = els.showGlossCheckbox.checked;
     if (state.lastResult) render(state.lastResult);
   });
+
+  els.viewRawLink.addEventListener("click", () => {
+    els.rawJson.textContent = state.lastRawData ? JSON.stringify(state.lastRawData, null, 2) : "(nothing to show)";
+    els.rawDialog.showModal();
+  });
+  els.rawClose.addEventListener("click", () => els.rawDialog.close());
 })();
 </script>
 </body>
