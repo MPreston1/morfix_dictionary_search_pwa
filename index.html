@@ -433,62 +433,89 @@
   .conj-toggle-btn:disabled { opacity: 0.6; cursor: default; }
 
   .conj-table-wrap { margin-top: 14px; overflow-x: auto; }
+  /* Noun tables still use the original whole-table clone (they're already
+     narrow: 1 label column + singular/plural = 3 columns), so they keep
+     their original "conjugation-table" class and need their own styling.
+     Verb tables use the separate .conj-pair-table class below instead. */
   .conj-table-wrap table.conjugation-table {
     width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
     font-family: var(--font-body);
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     direction: rtl;
     margin-bottom: 4px;
   }
-  .conj-group-heading {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--brass);
-    margin: 16px 0 6px;
-  }
-  .conj-table-wrap .conj-group-heading:first-child { margin-top: 0; }
-  .conj-infinitive-wrap { margin-bottom: 8px; }
-  .conj-table-wrap th, .conj-table-wrap td {
+  .conj-table-wrap table.conjugation-table th,
+  .conj-table-wrap table.conjugation-table td {
     border: 1px solid var(--line);
-    padding: 5px 4px;
+    padding: 8px;
     vertical-align: top;
     text-align: center;
-    overflow-wrap: break-word;
-    word-break: break-word;
   }
-  .conj-table-wrap thead th {
+  .conj-table-wrap table.conjugation-table thead th {
     background: var(--paper);
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
     color: var(--ink-soft);
   }
-  .conj-table-wrap tbody th {
+  .conj-table-wrap table.conjugation-table tbody th {
     background: var(--paper);
     font-weight: 600;
     text-align: right;
+    white-space: nowrap;
   }
-  .conj-table-wrap .menukad { font-family: var(--font-display); font-size: 0.95rem; }
+
+  .conj-group-heading {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--brass);
+    margin: 18px 0 6px;
+  }
+  .conj-table-wrap .conj-group-heading:first-child { margin-top: 0; }
+  .conj-infinitive-wrap { margin-bottom: 8px; }
+
+  .conj-pair-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    direction: rtl;
+    margin-bottom: 4px;
+  }
+  .conj-pair-td {
+    width: 50%;
+    border: 1px solid var(--line);
+    padding: 10px 8px;
+    text-align: center;
+    vertical-align: top;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .conj-pronoun {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    line-height: 1.35;
+    margin-bottom: 5px;
+  }
+  .conj-table-wrap .menukad { font-family: var(--font-display); font-size: 1.3rem; }
   .conj-table-wrap .chaser { color: var(--ink-soft); font-size: 0.85em; }
   .conj-table-wrap .transcription {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.85rem;
     color: var(--ink-soft);
     direction: ltr;
     overflow-wrap: break-word;
     word-break: break-all;
   }
   @media (max-width: 480px) {
-    .conj-table-wrap table.conjugation-table { font-size: 0.72rem; }
-    .conj-table-wrap th, .conj-table-wrap td { padding: 4px 3px; }
-    .conj-table-wrap .menukad { font-size: 0.85rem; }
-    .conj-table-wrap .transcription { font-size: 0.62rem; }
-    .conj-table-wrap thead th { font-size: 0.58rem; }
+    .conj-pair-td { padding: 8px 5px; }
+    .conj-pronoun { font-size: 0.72rem; }
+    .conj-table-wrap .menukad { font-size: 1.1rem; }
+    .conj-table-wrap .transcription { font-size: 0.75rem; }
   }
   .conj-table-wrap .aux-forms {
     position: relative;
@@ -1135,151 +1162,133 @@
   // The original table packs a "verb form" label column (Present/Past/
   // Future/Imperative/Infinitive), a "person" column, and 4 data columns
   // (singular/plural × masculine/feminine) into one wide table — too wide
-  // for a phone screen. Splitting it into one small table per tense group,
-  // with the tense named as a heading above instead of a row-label column,
-  // drops that leftmost column entirely and narrows each table to just
-  // what that tense actually needs.
-  function sanitizeConjTdContent(td) {
-    const innerDiv = td.querySelector(":scope > div");
-    return innerDiv ? sanitizeNode(innerDiv) : null;
+  // for a phone screen even when split by tense. Pealim tags every cell
+  // with an id like "PERF-2ms" (past tense, 2nd person, masculine,
+  // singular), so instead of reshaping the original rows, we look cells
+  // up by that id and rebuild our own compact layout: two columns
+  // (singular / plural), one row per person+gender combination, with the
+  // Hebrew pronoun (which isn't in the data at all — Hebrew grammar keys
+  // off these slots structurally) shown right next to its form.
+  const PRONOUNS = {
+    "1s": ["אני"], "1p": ["אנחנו"],
+    "2ms": ["אתה"], "2fs": ["את"], "2mp": ["אתם"], "2fp": ["אתן"],
+    "3ms": ["הוא"], "3fs": ["היא"], "3mp": ["הם"], "3fp": ["הן"], "3p": ["הם", "הן"]
+  };
+
+  function pastLikeRows(prefix) {
+    return [
+      { sg: `${prefix}-1s`, pl: `${prefix}-1p`, sgP: PRONOUNS["1s"], plP: PRONOUNS["1p"] },
+      { sg: `${prefix}-2ms`, pl: `${prefix}-2mp`, sgP: PRONOUNS["2ms"], plP: PRONOUNS["2mp"] },
+      { sg: `${prefix}-2fs`, pl: `${prefix}-2fp`, sgP: PRONOUNS["2fs"], plP: PRONOUNS["2fp"] },
+      { sg: `${prefix}-3ms`, pl: `${prefix}-3p`, sgP: PRONOUNS["3ms"], plP: [PRONOUNS["3p"][0]] },
+      { sg: `${prefix}-3fs`, pl: `${prefix}-3p`, sgP: PRONOUNS["3fs"], plP: [PRONOUNS["3p"][1]] }
+    ];
+  }
+  function futureLikeRows(prefix) {
+    return [
+      { sg: `${prefix}-1s`, pl: `${prefix}-1p`, sgP: PRONOUNS["1s"], plP: PRONOUNS["1p"] },
+      { sg: `${prefix}-2ms`, pl: `${prefix}-2mp`, sgP: PRONOUNS["2ms"], plP: PRONOUNS["2mp"] },
+      { sg: `${prefix}-2fs`, pl: `${prefix}-2fp`, sgP: PRONOUNS["2fs"], plP: PRONOUNS["2fp"] },
+      { sg: `${prefix}-3ms`, pl: `${prefix}-3mp`, sgP: PRONOUNS["3ms"], plP: PRONOUNS["3mp"] },
+      { sg: `${prefix}-3fs`, pl: `${prefix}-3fp`, sgP: PRONOUNS["3fs"], plP: PRONOUNS["3fp"] }
+    ];
   }
 
-  function parseCells(tds) {
-    return tds.map(td => ({
-      colspan: parseInt(td.getAttribute("colspan") || "1", 10),
-      node: sanitizeConjTdContent(td)
-    }));
+  function presentLikeRows(prefix) {
+    return [
+      { sg: `${prefix}-ms`, pl: `${prefix}-mp`, sgP: ["אני", "אתה", "הוא"], plP: ["אנחנו", "אתם", "הם"] },
+      { sg: `${prefix}-fs`, pl: `${prefix}-fp`, sgP: ["אני", "את", "היא"], plP: ["אנחנו", "אתן", "הן"] }
+    ];
   }
 
-  function parseVerbConjugationGroups(html) {
+  const VERB_TABLE_CONFIGS = [
+    { heading: "Present tense", rows: presentLikeRows("AP") },
+    { heading: "Past tense", rows: pastLikeRows("PERF") },
+    { heading: "Future tense", rows: futureLikeRows("IMPF") },
+    { heading: "Imperative", rows: [
+        { sg: "IMP-2ms", pl: "IMP-2mp", sgP: ["(to a man)"], plP: ["(to men)"] },
+        { sg: "IMP-2fs", pl: "IMP-2fp", sgP: ["(to a woman)"], plP: ["(to women)"] }
+    ]},
+    { heading: "Present tense (passive)", rows: presentLikeRows("passive-AP") },
+    { heading: "Past tense (passive)", rows: pastLikeRows("passive-PERF") },
+    { heading: "Future tense (passive)", rows: futureLikeRows("passive-IMPF") }
+  ];
+
+  function extractCellsById(html) {
     const doc = new DOMParser().parseFromString(html, "text/html");
     const table = doc.querySelector("table.conjugation-table");
-    const tbody = table ? table.querySelector("tbody") : null;
-    if (!tbody) return null;
-
-    const groups = [];
-    let pending = null;
-
-    Array.from(tbody.children).forEach(tr => {
-      const ths = Array.from(tr.querySelectorAll(":scope > th"));
-      const tds = Array.from(tr.querySelectorAll(":scope > td"));
-
-      if (pending && pending.rowsRemaining > 0) {
-        const personLabel = ths[0] ? ths[0].textContent.trim() : "";
-        pending.rows.push({ person: personLabel, cells: parseCells(tds) });
-        pending.rowsRemaining -= 1;
-        if (pending.rowsRemaining <= 0) {
-          groups.push({ label: pending.label, hasPerson: pending.hasPerson, rows: pending.rows });
-          pending = null;
-        }
-        return;
-      }
-
-      if (!ths.length) return;
-      const firstTh = ths[0];
-      const rowspanCount = parseInt(firstTh.getAttribute("rowspan") || "1", 10);
-      const label = firstTh.textContent.trim();
-
-      if (rowspanCount > 1) {
-        // Multi-row group (Past/Future tense): this row carries both the
-        // group label (rowspan) and the first person label.
-        const personLabel = ths[1] ? ths[1].textContent.trim() : "";
-        pending = { label, hasPerson: true, rowsRemaining: rowspanCount - 1, rows: [{ person: personLabel, cells: parseCells(tds) }] };
-      } else {
-        // Single-row group (Present/Imperative/Infinitive): no person column.
-        groups.push({ label, hasPerson: false, rows: [{ person: null, cells: parseCells(tds) }] });
-      }
+    if (!table) return null;
+    const cellsById = {};
+    table.querySelectorAll("td.conj-td > div[id]").forEach(div => {
+      cellsById[div.id] = div;
     });
-
-    return groups.length ? groups : null;
+    return cellsById;
   }
 
-  function buildVerbTablesNode(groups) {
+  function buildPairCell(id, pronouns, cellsById) {
+    const td = document.createElement("td");
+    td.className = "conj-pair-td";
+
+    const pronounWrap = document.createElement("div");
+    pronounWrap.className = "conj-pronoun";
+    pronouns.forEach(p => {
+      const line = document.createElement("div");
+      line.textContent = p;
+      pronounWrap.appendChild(line);
+    });
+    td.appendChild(pronounWrap);
+
+    const rawDiv = cellsById[id];
+    if (rawDiv) {
+      const sanitized = sanitizeNode(rawDiv);
+      if (sanitized) td.appendChild(sanitized);
+    }
+    return td;
+  }
+
+  function buildVerbTablesNode(cellsById) {
     const container = document.createElement("div");
-    groups.forEach(group => {
+
+    VERB_TABLE_CONFIGS.forEach(cfg => {
+      const rowsToRender = cfg.rows.filter(r => cellsById[r.sg] || cellsById[r.pl]);
+      if (!rowsToRender.length) return;
+
       const heading = document.createElement("div");
       heading.className = "conj-group-heading";
-      heading.textContent = group.label;
+      heading.textContent = cfg.heading;
       container.appendChild(heading);
 
-      // Infinitive is a single value spanning every column — not worth a grid.
-      if (/infinitive/i.test(group.label)) {
-        const wrap = document.createElement("div");
-        wrap.className = "conj-infinitive-wrap";
-        (group.rows[0].cells || []).forEach(cell => { if (cell.node) wrap.appendChild(cell.node); });
-        container.appendChild(wrap);
-        return;
-      }
-
       const table = document.createElement("table");
-      table.className = "table table-condensed conjugation-table";
-
-      // table-layout: fixed needs explicit column widths (colspan'd header
-      // cells alone aren't reliable for this) so the table is guaranteed to
-      // fit the available width instead of growing past it.
-      const colgroup = document.createElement("colgroup");
-      if (group.hasPerson) {
-        const personCol = document.createElement("col");
-        personCol.style.width = "13%";
-        colgroup.appendChild(personCol);
-        for (let i = 0; i < 4; i++) {
-          const col = document.createElement("col");
-          col.style.width = "21.75%";
-          colgroup.appendChild(col);
-        }
-      } else {
-        for (let i = 0; i < 4; i++) {
-          const col = document.createElement("col");
-          col.style.width = "25%";
-          colgroup.appendChild(col);
-        }
-      }
-      table.appendChild(colgroup);
-
-      const thead = document.createElement("thead");
-      const headRow1 = document.createElement("tr");
-      if (group.hasPerson) {
-        const corner = document.createElement("th");
-        corner.setAttribute("rowspan", "2");
-        headRow1.appendChild(corner);
-      }
-      const sg = document.createElement("th");
-      sg.className = "column-header"; sg.setAttribute("colspan", "2"); sg.textContent = "Singular";
-      const pl = document.createElement("th");
-      pl.className = "column-header"; pl.setAttribute("colspan", "2"); pl.textContent = "Plural";
-      headRow1.appendChild(sg); headRow1.appendChild(pl);
-      thead.appendChild(headRow1);
-
-      const headRow2 = document.createElement("tr");
-      ["Masculine", "Feminine", "Masculine", "Feminine"].forEach(label => {
-        const th = document.createElement("th");
-        th.className = "column-header"; th.textContent = label;
-        headRow2.appendChild(th);
-      });
-      thead.appendChild(headRow2);
-      table.appendChild(thead);
-
+      table.className = "conj-pair-table";
       const tbody = document.createElement("tbody");
-      group.rows.forEach(row => {
+
+      rowsToRender.forEach(r => {
         const tr = document.createElement("tr");
-        if (group.hasPerson) {
-          const personTh = document.createElement("th");
-          personTh.textContent = row.person || "";
-          tr.appendChild(personTh);
-        }
-        row.cells.forEach(cell => {
-          const td = document.createElement("td");
-          td.className = "conj-td";
-          if (cell.colspan > 1) td.setAttribute("colspan", String(cell.colspan));
-          if (cell.node) td.appendChild(cell.node);
-          tr.appendChild(td);
-        });
+        // dir="rtl" on the table means the first cell appended lands on
+        // the right visually — singular first, so it reads right-to-left
+        // the way the rest of the page does.
+        tr.appendChild(buildPairCell(r.sg, r.sgP, cellsById));
+        tr.appendChild(buildPairCell(r.pl, r.plP, cellsById));
         tbody.appendChild(tr);
       });
+
       table.appendChild(tbody);
       container.appendChild(table);
     });
-    return container;
+
+    if (cellsById["INF-L"]) {
+      const heading = document.createElement("div");
+      heading.className = "conj-group-heading";
+      heading.textContent = "Infinitive";
+      container.appendChild(heading);
+      const wrap = document.createElement("div");
+      wrap.className = "conj-infinitive-wrap";
+      const sanitized = sanitizeNode(cellsById["INF-L"]);
+      if (sanitized) wrap.appendChild(sanitized);
+      container.appendChild(wrap);
+    }
+
+    return container.children.length ? container : null;
   }
 
   function pealimEntryCardHtml(entry, index) {
@@ -1293,6 +1302,7 @@
       </li>`).join("")}</ul>` : "";
 
     return `
+
       <div class="entry-card">
         <div class="entry-tab">${entry.isVerb ? "VERB" : "WORD"}</div>
         <div class="entry-body">
@@ -1389,8 +1399,8 @@
         state.pealim.lastRawHtml = html;
         els.viewRawPealim.hidden = false;
         if (entry.isVerb) {
-          const groups = parseVerbConjugationGroups(html);
-          entry.tableNode = groups ? buildVerbTablesNode(groups) : null;
+          const cellsById = extractCellsById(html);
+          entry.tableNode = cellsById ? buildVerbTablesNode(cellsById) : null;
         } else {
           entry.tableNode = extractConjugationTableNode(html);
         }
