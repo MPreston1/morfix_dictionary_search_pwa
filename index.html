@@ -435,6 +435,7 @@
   .conj-table-wrap { margin-top: 14px; overflow-x: auto; }
   .conj-table-wrap table.conjugation-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-family: var(--font-body);
     font-size: 0.82rem;
@@ -453,31 +454,41 @@
   .conj-infinitive-wrap { margin-bottom: 8px; }
   .conj-table-wrap th, .conj-table-wrap td {
     border: 1px solid var(--line);
-    padding: 6px 8px;
+    padding: 5px 4px;
     vertical-align: top;
     text-align: center;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   .conj-table-wrap thead th {
     background: var(--paper);
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     color: var(--ink-soft);
   }
   .conj-table-wrap tbody th {
     background: var(--paper);
     font-weight: 600;
     text-align: right;
-    white-space: nowrap;
   }
-  .conj-table-wrap .menukad { font-family: var(--font-display); font-size: 1.05rem; }
+  .conj-table-wrap .menukad { font-family: var(--font-display); font-size: 0.95rem; }
   .conj-table-wrap .chaser { color: var(--ink-soft); font-size: 0.85em; }
   .conj-table-wrap .transcription {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--ink-soft);
     direction: ltr;
+    overflow-wrap: break-word;
+    word-break: break-all;
+  }
+  @media (max-width: 480px) {
+    .conj-table-wrap table.conjugation-table { font-size: 0.72rem; }
+    .conj-table-wrap th, .conj-table-wrap td { padding: 4px 3px; }
+    .conj-table-wrap .menukad { font-size: 0.85rem; }
+    .conj-table-wrap .transcription { font-size: 0.62rem; }
+    .conj-table-wrap thead th { font-size: 0.58rem; }
   }
   .conj-table-wrap .aux-forms {
     position: relative;
@@ -1202,6 +1213,28 @@
 
       const table = document.createElement("table");
       table.className = "table table-condensed conjugation-table";
+
+      // table-layout: fixed needs explicit column widths (colspan'd header
+      // cells alone aren't reliable for this) so the table is guaranteed to
+      // fit the available width instead of growing past it.
+      const colgroup = document.createElement("colgroup");
+      if (group.hasPerson) {
+        const personCol = document.createElement("col");
+        personCol.style.width = "13%";
+        colgroup.appendChild(personCol);
+        for (let i = 0; i < 4; i++) {
+          const col = document.createElement("col");
+          col.style.width = "21.75%";
+          colgroup.appendChild(col);
+        }
+      } else {
+        for (let i = 0; i < 4; i++) {
+          const col = document.createElement("col");
+          col.style.width = "25%";
+          colgroup.appendChild(col);
+        }
+      }
+      table.appendChild(colgroup);
 
       const thead = document.createElement("thead");
       const headRow1 = document.createElement("tr");
