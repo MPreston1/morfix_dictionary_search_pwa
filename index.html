@@ -435,12 +435,22 @@
   .conj-table-wrap { margin-top: 14px; overflow-x: auto; }
   .conj-table-wrap table.conjugation-table {
     width: 100%;
-    min-width: 480px;
     border-collapse: collapse;
     font-family: var(--font-body);
     font-size: 0.82rem;
     direction: rtl;
+    margin-bottom: 4px;
   }
+  .conj-group-heading {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--brass);
+    margin: 16px 0 6px;
+  }
+  .conj-table-wrap .conj-group-heading:first-child { margin-top: 0; }
+  .conj-infinitive-wrap { margin-bottom: 8px; }
   .conj-table-wrap th, .conj-table-wrap td {
     border: 1px solid var(--line);
     padding: 6px 8px;
@@ -469,14 +479,6 @@
     color: var(--ink-soft);
     direction: ltr;
   }
-  .conj-table-wrap .meaning {
-    margin-top: 3px;
-    font-size: 0.8rem;
-    direction: ltr;
-    text-align: left;
-  }
-  .conj-table-wrap .meaning em { font-style: italic; color: var(--ink-soft); }
-  .conj-table-wrap .meaning strong { color: var(--ink); }
   .conj-table-wrap .aux-forms {
     position: relative;
     display: inline-block;
@@ -489,9 +491,6 @@
   .conj-table-wrap .aux-forms .transcription {
     color: var(--brass);
   }
-  .conj-table-wrap .audio-play { cursor: pointer; margin-inline-end: 3px; }
-  .conj-table-wrap .audio-play:hover { opacity: 0.6; }
-  .pealim-forms-list .audio-play, .headword-row .audio-play { cursor: pointer; }
 
   .hover-tooltip {
     position: fixed;
@@ -560,7 +559,6 @@
   </div>
 </div>
 
-<audio id="audio-player" preload="none"></audio>
 <div id="hover-tooltip" class="hover-tooltip" hidden></div>
 
 <dialog id="settings-dialog">
@@ -661,7 +659,6 @@
     rawDialogTitle: document.getElementById("raw-dialog-title"),
     rawJson: document.getElementById("raw-json"),
     rawClose: document.getElementById("raw-close"),
-    audioPlayer: document.getElementById("audio-player"),
     hoverTooltip: document.getElementById("hover-tooltip")
   };
 
@@ -932,9 +929,6 @@
   // inject that HTML wholesale, we parse it into plain data (search results)
   // or rebuild the conjugation table through an attribute/tag allowlist
   // (sanitizeNode below) before anything reaches the live page.
-  function safeAudioUrl(url) {
-    return typeof url === "string" && /^https:\/\/audio\.pealim\.com\//.test(url) ? url : "";
-  }
 
   async function fetchPealimPage(url) {
     const { data, via } = await fetchWithCorsFallback(url, {
@@ -960,8 +954,6 @@
 
         const lemmaMenukad = dataDiv.querySelector(".verb-search-lemma .menukad");
         const headword = lemmaMenukad ? lemmaMenukad.textContent.trim() : "";
-        const lemmaAudioEl = dataDiv.querySelector(".verb-search-lemma .audio-play");
-        const headwordAudio = lemmaAudioEl ? safeAudioUrl(lemmaAudioEl.getAttribute("data-audio")) : "";
 
         const linkEl = dataDiv.querySelector(".verb-search-lemma a");
         let dictUrl = "";
@@ -1000,19 +992,16 @@
           if (audioEl) audioEl.remove();
           const hebrewText = clone.textContent.trim();
 
-          const formAudioEl = f.querySelector(".audio-play");
-          const formAudioUrl = formAudioEl ? safeAudioUrl(formAudioEl.getAttribute("data-audio")) : "";
           const tpgnEl = f.querySelector(".vf-search-tpgn");
           forms.push({
             hebrew: hebrewText,
             transcription,
-            audioUrl: formAudioUrl,
             label: tpgnEl ? tpgnEl.textContent.trim() : ""
           });
         });
 
         entries.push({
-          headword, headwordAudio, dictUrl, root, partOfSpeech, isVerb, meaning,
+          headword, dictUrl, root, partOfSpeech, isVerb, meaning,
           hasFullTable: /full conjugation|all forms/i.test(buttonLabel),
           forms, tableNode: null, expanded: false
         });
@@ -1027,8 +1016,6 @@
       table.querySelectorAll("tbody tr").forEach(tr => {
         const lemmaEl = tr.querySelector(".dict-lemma .menukad");
         const headword = lemmaEl ? lemmaEl.textContent.trim() : "";
-        const audioEl = tr.querySelector(".dict-lemma .audio-play");
-        const headwordAudio = audioEl ? safeAudioUrl(audioEl.getAttribute("data-audio")) : "";
         const linkEl = tr.querySelector(".dict-lemma a");
         let dictUrl = "";
         if (linkEl) {
@@ -1044,7 +1031,7 @@
         const meaning = meaningEl ? meaningEl.textContent.trim() : "";
 
         entries.push({
-          headword, headwordAudio, dictUrl, root, partOfSpeech, isVerb, meaning,
+          headword, dictUrl, root, partOfSpeech, isVerb, meaning,
           hasFullTable: isVerb,
           forms: [], tableNode: null, expanded: false
         });
@@ -1061,7 +1048,7 @@
   const ALLOWED_ATTRS = {
     table: ["class"], thead: [], tbody: [], tr: [],
     th: ["rowspan", "colspan", "class"], td: ["rowspan", "colspan", "class"],
-    div: ["class", "id"], span: ["class", "data-audio"], b: [], em: [], strong: []
+    div: ["class", "id"], span: ["class"], b: [], em: [], strong: []
   };
 
   function sanitizeNode(node) {
@@ -1071,6 +1058,9 @@
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
 
     const tag = node.tagName.toLowerCase();
+
+    // No audio in this app — drop the pronunciation icon entirely.
+    if (tag === "span" && node.classList.contains("audio-play")) return null;
 
     // Drop the per-conjugation English gloss entirely — not just its
     // wrapper — since it's not wanted in the table at all.
@@ -1114,9 +1104,7 @@
     const el = document.createElement(tag);
     for (const attr of ALLOWED_ATTRS[tag] || []) {
       if (!node.hasAttribute(attr)) continue;
-      let value = node.getAttribute(attr);
-      if (attr === "data-audio" && !safeAudioUrl(value)) continue;
-      el.setAttribute(attr, value);
+      el.setAttribute(attr, node.getAttribute(attr));
     }
     node.childNodes.forEach(child => {
       const cleaned = sanitizeNode(child);
@@ -1132,11 +1120,139 @@
     return sanitizeNode(table);
   }
 
+  // ---------- Verb conjugation tables: split by tense, labeled on top ----------
+  // The original table packs a "verb form" label column (Present/Past/
+  // Future/Imperative/Infinitive), a "person" column, and 4 data columns
+  // (singular/plural × masculine/feminine) into one wide table — too wide
+  // for a phone screen. Splitting it into one small table per tense group,
+  // with the tense named as a heading above instead of a row-label column,
+  // drops that leftmost column entirely and narrows each table to just
+  // what that tense actually needs.
+  function sanitizeConjTdContent(td) {
+    const innerDiv = td.querySelector(":scope > div");
+    return innerDiv ? sanitizeNode(innerDiv) : null;
+  }
+
+  function parseCells(tds) {
+    return tds.map(td => ({
+      colspan: parseInt(td.getAttribute("colspan") || "1", 10),
+      node: sanitizeConjTdContent(td)
+    }));
+  }
+
+  function parseVerbConjugationGroups(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const table = doc.querySelector("table.conjugation-table");
+    const tbody = table ? table.querySelector("tbody") : null;
+    if (!tbody) return null;
+
+    const groups = [];
+    let pending = null;
+
+    Array.from(tbody.children).forEach(tr => {
+      const ths = Array.from(tr.querySelectorAll(":scope > th"));
+      const tds = Array.from(tr.querySelectorAll(":scope > td"));
+
+      if (pending && pending.rowsRemaining > 0) {
+        const personLabel = ths[0] ? ths[0].textContent.trim() : "";
+        pending.rows.push({ person: personLabel, cells: parseCells(tds) });
+        pending.rowsRemaining -= 1;
+        if (pending.rowsRemaining <= 0) {
+          groups.push({ label: pending.label, hasPerson: pending.hasPerson, rows: pending.rows });
+          pending = null;
+        }
+        return;
+      }
+
+      if (!ths.length) return;
+      const firstTh = ths[0];
+      const rowspanCount = parseInt(firstTh.getAttribute("rowspan") || "1", 10);
+      const label = firstTh.textContent.trim();
+
+      if (rowspanCount > 1) {
+        // Multi-row group (Past/Future tense): this row carries both the
+        // group label (rowspan) and the first person label.
+        const personLabel = ths[1] ? ths[1].textContent.trim() : "";
+        pending = { label, hasPerson: true, rowsRemaining: rowspanCount - 1, rows: [{ person: personLabel, cells: parseCells(tds) }] };
+      } else {
+        // Single-row group (Present/Imperative/Infinitive): no person column.
+        groups.push({ label, hasPerson: false, rows: [{ person: null, cells: parseCells(tds) }] });
+      }
+    });
+
+    return groups.length ? groups : null;
+  }
+
+  function buildVerbTablesNode(groups) {
+    const container = document.createElement("div");
+    groups.forEach(group => {
+      const heading = document.createElement("div");
+      heading.className = "conj-group-heading";
+      heading.textContent = group.label;
+      container.appendChild(heading);
+
+      // Infinitive is a single value spanning every column — not worth a grid.
+      if (/infinitive/i.test(group.label)) {
+        const wrap = document.createElement("div");
+        wrap.className = "conj-infinitive-wrap";
+        (group.rows[0].cells || []).forEach(cell => { if (cell.node) wrap.appendChild(cell.node); });
+        container.appendChild(wrap);
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.className = "table table-condensed conjugation-table";
+
+      const thead = document.createElement("thead");
+      const headRow1 = document.createElement("tr");
+      if (group.hasPerson) {
+        const corner = document.createElement("th");
+        corner.setAttribute("rowspan", "2");
+        headRow1.appendChild(corner);
+      }
+      const sg = document.createElement("th");
+      sg.className = "column-header"; sg.setAttribute("colspan", "2"); sg.textContent = "Singular";
+      const pl = document.createElement("th");
+      pl.className = "column-header"; pl.setAttribute("colspan", "2"); pl.textContent = "Plural";
+      headRow1.appendChild(sg); headRow1.appendChild(pl);
+      thead.appendChild(headRow1);
+
+      const headRow2 = document.createElement("tr");
+      ["Masculine", "Feminine", "Masculine", "Feminine"].forEach(label => {
+        const th = document.createElement("th");
+        th.className = "column-header"; th.textContent = label;
+        headRow2.appendChild(th);
+      });
+      thead.appendChild(headRow2);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      group.rows.forEach(row => {
+        const tr = document.createElement("tr");
+        if (group.hasPerson) {
+          const personTh = document.createElement("th");
+          personTh.textContent = row.person || "";
+          tr.appendChild(personTh);
+        }
+        row.cells.forEach(cell => {
+          const td = document.createElement("td");
+          td.className = "conj-td";
+          if (cell.colspan > 1) td.setAttribute("colspan", String(cell.colspan));
+          if (cell.node) td.appendChild(cell.node);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+    });
+    return container;
+  }
+
   function pealimEntryCardHtml(entry, index) {
     const formsHtml = entry.forms.length ? `<ul class="pealim-forms-list">${entry.forms.map(f => `
       <li>
         <div dir="rtl">
-          ${f.audioUrl ? `<span class="audio-play" data-audio="${escapeHtml(f.audioUrl)}">🔊</span>` : ""}
           <span class="pealim-form-hebrew">${escapeHtml(f.hebrew)}</span>
           ${f.transcription ? `<span class="pealim-form-transcription">${escapeHtml(f.transcription)}</span>` : ""}
         </div>
@@ -1148,7 +1264,6 @@
         <div class="entry-tab">${entry.isVerb ? "VERB" : "WORD"}</div>
         <div class="entry-body">
           <div class="headword-row" dir="rtl">
-            ${entry.headwordAudio ? `<span class="audio-play" data-audio="${escapeHtml(entry.headwordAudio)}">🔊</span>` : ""}
             <span class="headword">${escapeHtml(entry.headword)}</span>
             ${entry.partOfSpeech ? `<span class="pos-tag">${escapeHtml(entry.partOfSpeech)}</span>` : ""}
           </div>
@@ -1218,13 +1333,6 @@
   document.addEventListener("scroll", hideAuxTooltip, true);
 
   els.resultsPealim.addEventListener("click", async e => {
-    const audioEl = e.target.closest(".audio-play");
-    if (audioEl) {
-      const url = audioEl.getAttribute("data-audio");
-      if (url) { els.audioPlayer.src = url; els.audioPlayer.play().catch(() => {}); }
-      return;
-    }
-
     const btn = e.target.closest(".conj-toggle-btn");
     if (!btn) return;
     const idx = Number(btn.dataset.index);
@@ -1247,7 +1355,12 @@
         const { html } = await fetchPealimPage(entry.dictUrl);
         state.pealim.lastRawHtml = html;
         els.viewRawPealim.hidden = false;
-        entry.tableNode = extractConjugationTableNode(html);
+        if (entry.isVerb) {
+          const groups = parseVerbConjugationGroups(html);
+          entry.tableNode = groups ? buildVerbTablesNode(groups) : null;
+        } else {
+          entry.tableNode = extractConjugationTableNode(html);
+        }
       }
       wrap.innerHTML = "";
       if (entry.tableNode) {
