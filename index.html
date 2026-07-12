@@ -489,13 +489,12 @@
   .conj-table-wrap .aux-forms .transcription {
     color: var(--brass);
   }
-  .conj-table-wrap .aux-forms::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-top: 6px;
+  .conj-table-wrap .audio-play { cursor: pointer; margin-inline-end: 3px; }
+  .conj-table-wrap .audio-play:hover { opacity: 0.6; }
+  .pealim-forms-list .audio-play, .headword-row .audio-play { cursor: pointer; }
+
+  .hover-tooltip {
+    position: fixed;
     background: var(--ink);
     color: var(--paper-card);
     font-family: var(--font-body);
@@ -503,21 +502,12 @@
     line-height: 1.3;
     padding: 6px 10px;
     border-radius: 4px;
-    white-space: normal;
-    width: max-content;
     max-width: 220px;
     text-align: center;
-    opacity: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
     pointer-events: none;
-    transition: opacity 0.15s;
-    z-index: 20;
+    z-index: 1000;
   }
-  .conj-table-wrap .aux-forms:hover::after {
-    opacity: 1;
-  }
-  .conj-table-wrap .audio-play { cursor: pointer; margin-inline-end: 3px; }
-  .conj-table-wrap .audio-play:hover { opacity: 0.6; }
-  .pealim-forms-list .audio-play, .headword-row .audio-play { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -571,6 +561,7 @@
 </div>
 
 <audio id="audio-player" preload="none"></audio>
+<div id="hover-tooltip" class="hover-tooltip" hidden></div>
 
 <dialog id="settings-dialog">
   <div class="dialog-inner">
@@ -670,7 +661,8 @@
     rawDialogTitle: document.getElementById("raw-dialog-title"),
     rawJson: document.getElementById("raw-json"),
     rawClose: document.getElementById("raw-close"),
-    audioPlayer: document.getElementById("audio-player")
+    audioPlayer: document.getElementById("audio-player"),
+    hoverTooltip: document.getElementById("hover-tooltip")
   };
 
   els.firebaseKeyField.value = state.firebaseKey;
@@ -1176,6 +1168,54 @@
       els.resultsPealim.innerHTML = `<div class="empty-state">No results.</div>`;
     }
   }
+
+  // aux-forms tooltip: a real fixed-position element (not a CSS ::after)
+  // so it can be positioned by actual viewport space rather than being
+  // trapped and clipped inside the table's scrolling container.
+  function showAuxTooltip(target) {
+    const text = target.getAttribute("data-tooltip");
+    if (!text) return;
+    els.hoverTooltip.textContent = text;
+    els.hoverTooltip.hidden = false;
+
+    const margin = 8;
+    const rect = target.getBoundingClientRect();
+    const tw = els.hoverTooltip.offsetWidth;
+    const th = els.hoverTooltip.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Prefer below the target; flip above if there isn't room.
+    let top = rect.bottom + margin;
+    if (top + th > vh - margin) {
+      const above = rect.top - th - margin;
+      top = above >= margin ? above : margin;
+    }
+
+    // Center horizontally on the target, then clamp within the viewport
+    // so it never gets cut off against the left/right edges.
+    let left = rect.left + rect.width / 2 - tw / 2;
+    left = Math.max(margin, Math.min(left, vw - tw - margin));
+
+    els.hoverTooltip.style.top = `${top}px`;
+    els.hoverTooltip.style.left = `${left}px`;
+  }
+
+  function hideAuxTooltip() {
+    els.hoverTooltip.hidden = true;
+  }
+
+  els.resultsPealim.addEventListener("mouseover", e => {
+    const target = e.target.closest(".aux-forms[data-tooltip]");
+    if (target) showAuxTooltip(target);
+  });
+  els.resultsPealim.addEventListener("mouseout", e => {
+    const target = e.target.closest(".aux-forms[data-tooltip]");
+    if (target && !target.contains(e.relatedTarget)) hideAuxTooltip();
+  });
+  // Scrolling the results column moves the target under a fixed-position
+  // tooltip without firing mouseout, so just hide it defensively.
+  document.addEventListener("scroll", hideAuxTooltip, true);
 
   els.resultsPealim.addEventListener("click", async e => {
     const audioEl = e.target.closest(".audio-play");
