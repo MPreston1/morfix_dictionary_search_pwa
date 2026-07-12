@@ -1216,11 +1216,15 @@
 
   function extractCellsById(html) {
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const table = doc.querySelector("table.conjugation-table");
-    if (!table) return null;
+    // Passive forms sit in a *second* conjugation-table element, separate
+    // from the active one — querySelector alone would silently miss it.
+    const tables = doc.querySelectorAll("table.conjugation-table");
+    if (!tables.length) return null;
     const cellsById = {};
-    table.querySelectorAll("td.conj-td > div[id]").forEach(div => {
-      cellsById[div.id] = div;
+    tables.forEach(table => {
+      table.querySelectorAll("td.conj-td > div[id]").forEach(div => {
+        cellsById[div.id] = div;
+      });
     });
     return cellsById;
   }
