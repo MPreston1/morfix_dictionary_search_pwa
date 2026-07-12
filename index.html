@@ -478,13 +478,42 @@
   .conj-table-wrap .meaning em { font-style: italic; color: var(--ink-soft); }
   .conj-table-wrap .meaning strong { color: var(--ink); }
   .conj-table-wrap .aux-forms {
+    position: relative;
+    display: inline-block;
     margin-top: 4px;
-    font-size: 0.7rem;
-    color: var(--brass);
-    direction: ltr;
-    text-align: left;
+    padding-top: 4px;
     border-top: 1px dashed var(--brass-dim);
-    padding-top: 3px;
+    color: var(--brass);
+    cursor: help;
+  }
+  .conj-table-wrap .aux-forms .transcription {
+    color: var(--brass);
+  }
+  .conj-table-wrap .aux-forms::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 6px;
+    background: var(--ink);
+    color: var(--paper-card);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    line-height: 1.3;
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: normal;
+    width: max-content;
+    max-width: 220px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 20;
+  }
+  .conj-table-wrap .aux-forms:hover::after {
+    opacity: 1;
   }
   .conj-table-wrap .audio-play { cursor: pointer; margin-inline-end: 3px; }
   .conj-table-wrap .audio-play:hover { opacity: 0.6; }
@@ -1054,6 +1083,31 @@
     // Drop the per-conjugation English gloss entirely — not just its
     // wrapper — since it's not wanted in the table at all.
     if (tag === "div" && node.classList.contains("meaning")) return null;
+
+    // aux-forms holds a leading sentence of explanatory text (e.g. "The
+    // ending is usually unstressed in spoken language:") followed by the
+    // alternate form itself. Pull that sentence out into a data-tooltip
+    // attribute instead of displaying it inline — CSS shows it on hover.
+    if (tag === "div" && node.classList.contains("aux-forms")) {
+      let noteText = "";
+      const childEls = [];
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const t = child.textContent.trim();
+          if (t) noteText += (noteText ? " " : "") + t;
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          childEls.push(child);
+        }
+      });
+      const wrapper = document.createElement("div");
+      wrapper.className = "aux-forms";
+      if (noteText) wrapper.setAttribute("data-tooltip", noteText);
+      childEls.forEach(child => {
+        const cleaned = sanitizeNode(child);
+        if (cleaned) wrapper.appendChild(cleaned);
+      });
+      return wrapper;
+    }
 
     if (!ALLOWED_TAGS.has(tag)) {
       // Unwrap disallowed elements: keep their sanitized children, drop the wrapper.
