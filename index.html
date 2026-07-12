@@ -1288,7 +1288,11 @@
   // ---------- Search orchestration ----------
   async function doSearch(word) {
     word = word.trim();
-    if (!word) return;
+    if (!word) {
+      resetMorfixColumn();
+      resetPealimColumn();
+      return;
+    }
     els.goButton.disabled = true;
     const tasks = [];
     if (state.scope !== "pealim") tasks.push(doMorfixSearch(word));
