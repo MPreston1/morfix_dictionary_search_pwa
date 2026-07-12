@@ -116,20 +116,25 @@
 
   .dict-toggle-row {
     display: flex;
-    gap: 18px;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 6px;
   }
   .dict-toggle-row label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
     font-family: var(--font-body);
     font-size: 0.85rem;
     color: var(--ink-soft);
-    cursor: pointer;
-    user-select: none;
   }
-  .dict-toggle-row input { cursor: pointer; }
+  .dict-toggle-row select {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-card);
+    color: var(--ink);
+    cursor: pointer;
+  }
 
   .gloss-toggle {
     display: flex;
@@ -181,6 +186,7 @@
   @media (max-width: 760px) {
     .dict-columns { grid-template-columns: 1fr; }
   }
+  .dict-columns.single-column { grid-template-columns: 1fr; max-width: 640px; }
   .dict-column { min-width: 0; }
   .dict-column-header {
     font-family: var(--font-display);
@@ -498,8 +504,12 @@
   </form>
 
   <div class="dict-toggle-row">
-    <label><input type="checkbox" id="search-morfix" checked /> Morfix</label>
-    <label><input type="checkbox" id="search-pealim" checked /> Pealim</label>
+    <label for="dict-scope">Search:</label>
+    <select id="dict-scope">
+      <option value="both" selected>Both</option>
+      <option value="morfix">Morfix only</option>
+      <option value="pealim">Pealim only</option>
+    </select>
   </div>
   <label class="gloss-toggle">
     <input type="checkbox" id="show-gloss" />
@@ -507,7 +517,7 @@
   </label>
 
   <div class="dict-columns">
-    <div class="dict-column">
+    <div class="dict-column" id="column-morfix">
       <div class="dict-column-header">Morfix<span class="heb">מורפיקס</span></div>
       <div class="status-row">
         <div class="status-line" id="status-morfix"></div>
@@ -518,7 +528,7 @@
       </div>
     </div>
 
-    <div class="dict-column">
+    <div class="dict-column" id="column-pealim">
       <div class="dict-column-header">Pealim<span class="heb">פְּעָלִים</span></div>
       <div class="status-row">
         <div class="status-line" id="status-pealim"></div>
@@ -601,8 +611,7 @@
     token: null,
     tokenExpiresAt: 0,
     showGloss: false,
-    searchMorfix: true,
-    searchPealim: true,
+    scope: "both",
     morfix: { lastResult: null, lastRaw: null },
     pealim: { lastResult: null, lastRawHtml: null }
   };
@@ -612,8 +621,10 @@
     form: document.getElementById("search-form"),
     input: document.getElementById("search-input"),
     goButton: document.getElementById("go-button"),
-    searchMorfixCheckbox: document.getElementById("search-morfix"),
-    searchPealimCheckbox: document.getElementById("search-pealim"),
+    searchScopeSelect: document.getElementById("dict-scope"),
+    columnMorfix: document.getElementById("column-morfix"),
+    columnPealim: document.getElementById("column-pealim"),
+    dictColumns: document.querySelector(".dict-columns"),
     showGlossCheckbox: document.getElementById("show-gloss"),
     statusMorfix: document.getElementById("status-morfix"),
     statusPealim: document.getElementById("status-pealim"),
@@ -646,8 +657,40 @@
     els.dialog.close();
   });
 
-  els.searchMorfixCheckbox.addEventListener("change", () => { state.searchMorfix = els.searchMorfixCheckbox.checked; });
-  els.searchPealimCheckbox.addEventListener("change", () => { state.searchPealim = els.searchPealimCheckbox.checked; });
+  function resetMorfixColumn() {
+    state.morfix.lastResult = null;
+    state.morfix.lastRaw = null;
+    els.statusMorfix.textContent = "";
+    els.statusMorfix.classList.remove("error");
+    els.viewRawMorfix.hidden = true;
+    els.resultsMorfix.innerHTML = `<div class="empty-state">Search a word to see its entry.</div>`;
+  }
+
+  function resetPealimColumn() {
+    state.pealim.lastResult = null;
+    state.pealim.lastRawHtml = null;
+    els.statusPealim.textContent = "";
+    els.statusPealim.classList.remove("error");
+    els.viewRawPealim.hidden = true;
+    els.resultsPealim.innerHTML = `<div class="empty-state">Search a word to see its entry.</div>`;
+  }
+
+  function applyScope() {
+    const showMorfix = state.scope !== "pealim";
+    const showPealim = state.scope !== "morfix";
+    els.columnMorfix.hidden = !showMorfix;
+    els.columnPealim.hidden = !showPealim;
+    els.dictColumns.classList.toggle("single-column", !(showMorfix && showPealim));
+    if (!showMorfix) resetMorfixColumn();
+    if (!showPealim) resetPealimColumn();
+  }
+
+  els.searchScopeSelect.addEventListener("change", () => {
+    state.scope = els.searchScopeSelect.value;
+    applyScope();
+  });
+  applyScope();
+
   els.showGlossCheckbox.addEventListener("change", () => {
     state.showGloss = els.showGlossCheckbox.checked;
     if (state.morfix.lastResult) renderMorfix(state.morfix.lastResult);
@@ -885,10 +928,12 @@
 
   function parsePealimSearchHtml(html) {
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const container = doc.querySelector(".results-by-verb");
     const entries = [];
-    if (container) {
-      container.querySelectorAll(":scope > .verb-search-result").forEach(div => {
+
+    // Hebrew-script queries render a rich list with preview forms.
+    const richContainer = doc.querySelector(".results-by-verb");
+    if (richContainer) {
+      richContainer.querySelectorAll(":scope > .verb-search-result").forEach(div => {
         const dataDiv = div.querySelector(".verb-search-data");
         if (!dataDiv) return;
 
@@ -937,13 +982,11 @@
           const formAudioEl = f.querySelector(".audio-play");
           const formAudioUrl = formAudioEl ? safeAudioUrl(formAudioEl.getAttribute("data-audio")) : "";
           const tpgnEl = f.querySelector(".vf-search-tpgn");
-          const formMeaningEl = f.querySelector(".vf-search-meaning");
           forms.push({
             hebrew: hebrewText,
             transcription,
             audioUrl: formAudioUrl,
-            label: tpgnEl ? tpgnEl.textContent.trim() : "",
-            meaning: formMeaningEl ? formMeaningEl.textContent.trim() : ""
+            label: tpgnEl ? tpgnEl.textContent.trim() : ""
           });
         });
 
@@ -954,6 +997,39 @@
         });
       });
     }
+
+    // English/Latin-script queries render a simpler table instead — no
+    // preview forms, and the row itself (not a labeled button) links out
+    // to the dict page.
+    const table = doc.querySelector("table.dict-table-t");
+    if (table) {
+      table.querySelectorAll("tbody tr").forEach(tr => {
+        const lemmaEl = tr.querySelector(".dict-lemma .menukad");
+        const headword = lemmaEl ? lemmaEl.textContent.trim() : "";
+        const audioEl = tr.querySelector(".dict-lemma .audio-play");
+        const headwordAudio = audioEl ? safeAudioUrl(audioEl.getAttribute("data-audio")) : "";
+        const linkEl = tr.querySelector(".dict-lemma a");
+        let dictUrl = "";
+        if (linkEl) {
+          try { dictUrl = new URL(linkEl.getAttribute("href"), "https://www.pealim.com").href; } catch (e) { /* ignore */ }
+        }
+
+        const cells = tr.querySelectorAll("td");
+        const rootEl = cells[1] ? cells[1].querySelector("a") : null;
+        const root = rootEl ? rootEl.textContent.trim() : "";
+        const partOfSpeech = cells[2] ? cells[2].textContent.trim() : "";
+        const isVerb = /^verb/i.test(partOfSpeech);
+        const meaningEl = tr.querySelector(".dict-meaning");
+        const meaning = meaningEl ? meaningEl.textContent.trim() : "";
+
+        entries.push({
+          headword, headwordAudio, dictUrl, root, partOfSpeech, isVerb, meaning,
+          hasFullTable: isVerb,
+          forms: [], tableNode: null, expanded: false
+        });
+      });
+    }
+
     return { entries };
   }
 
@@ -974,6 +1050,11 @@
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
 
     const tag = node.tagName.toLowerCase();
+
+    // Drop the per-conjugation English gloss entirely — not just its
+    // wrapper — since it's not wanted in the table at all.
+    if (tag === "div" && node.classList.contains("meaning")) return null;
+
     if (!ALLOWED_TAGS.has(tag)) {
       // Unwrap disallowed elements: keep their sanitized children, drop the wrapper.
       const frag = document.createDocumentFragment();
@@ -1013,7 +1094,7 @@
           <span class="pealim-form-hebrew">${escapeHtml(f.hebrew)}</span>
           ${f.transcription ? `<span class="pealim-form-transcription">${escapeHtml(f.transcription)}</span>` : ""}
         </div>
-        <span class="pealim-form-meaning"><span class="pealim-form-label">${escapeHtml(f.label)}</span>${escapeHtml(f.meaning)}</span>
+        ${f.label ? `<span class="pealim-form-label">${escapeHtml(f.label)}</span>` : ""}
       </li>`).join("")}</ul>` : "";
 
     return `
@@ -1116,8 +1197,8 @@
     if (!word) return;
     els.goButton.disabled = true;
     const tasks = [];
-    if (state.searchMorfix) tasks.push(doMorfixSearch(word));
-    if (state.searchPealim) tasks.push(doPealimSearch(word));
+    if (state.scope !== "pealim") tasks.push(doMorfixSearch(word));
+    if (state.scope !== "morfix") tasks.push(doPealimSearch(word));
     await Promise.allSettled(tasks);
     els.goButton.disabled = false;
   }
