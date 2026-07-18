@@ -701,6 +701,10 @@
     text-decoration: underline;
     padding: 4px 0;
   }
+  .milog-collapsed-forms { display: none; }
+  .milog-collapsed-forms.open { display: contents; }
+  .milog-grammar-plain-row { display: flex; gap: 8px; padding: 4px 0; font-size: 0.88rem; }
+  .milog-grammar-plain-row .milog-conj-tense-label { min-width: 90px; margin-bottom: 0; }
 
   .hover-tooltip {
     position: fixed;
@@ -2160,15 +2164,18 @@
   }
 
   // ---------- Milog ----------
-  // Best-effort parser: milog.co.il's real class/id names were never directly
-  // observed (see CSS note above), so this leans on structural patterns that
-  // should be fairly stable regardless of exact markup: entry links whose
-  // href ends in "/e_<digits>", and a Hebrew part-of-speech suffix
-  // (e.g. "- שם עצם, זכר") that milog appends after word-sense headwords but
-  // not after idiom/phrase headwords. Verify against "View raw response" and
-  // adjust the regexes below if milog's actual markup diverges.
-
-  const MILOG_POS_PATTERN = /^\s*[-–]\s*(שם עצם|שם פרטי|שם תואר|תואר|תואר הפועל|פועל|מילת|כינוי|ראשי תיבות|צירוף)/;
+  // Parser verified against a real fetch of https://milog.co.il/שלום. Every
+  // entry (word-sense AND idiom alike) lives in a <div class="sr_e">. The
+  // headword link is <a class="sr_e_t">; word-sense entries have the POS/root
+  // info as a nested <span> INSIDE that same anchor (idioms don't — that's
+  // the reliable classifier). Each numbered sense is a ".sr_e_para" with
+  // ".sr_e_index" (the "1."), ".sr_e_txt" (definition, with nested
+  // ".sr_example" spans for quoted examples), and optional ".sr_e_trans"
+  // links for English glosses. The results count lives in ".sr_below_text".
+  // NOTE: this was only checked against a noun search page (שלום) — verbs,
+  // the entry-detail page (parseMilogEntryHtml below), and the no-results
+  // case are still unverified guesses. Use "View raw response" to check
+  // those and adjust as needed.
 
   async function fetchMilogPage(url) {
     const { data, via } = await fetchWithCorsFallback(url, {
@@ -2181,119 +2188,175 @@
     return { html: data, via };
   }
 
-  // Walks the parsed document collecting every anchor that looks like an
-  // entry link (points at /<slug>/e_<id>). For each one, checks the text
-  // immediately following it for milog's POS suffix to decide whether it's
-  // a headword sense (noun/verb/etc.) or an idiom/expression, then grabs
-  // whatever numbered-definition-looking text sits between this anchor and
-  // the next one as that entry's definitions.
   function parseMilogSearchHtml(html, query) {
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const bodyText = doc.body ? doc.body.textContent : "";
-    const noResults = /לא התקבלו פירושים/.test(bodyText);
 
-    const anchors = Array.from(doc.querySelectorAll("a[href]")).filter(a => {
-      try {
-        const u = new URL(a.getAttribute("href"), "https://milog.co.il");
-        return /\/e_\d+$/.test(u.pathname) && a.textContent.trim();
-      } catch (e) { return false; }
-    });
+    const countLine = doc.querySelector(".sr_below_text");
+    const noResults = !countLine || /לא\s*(התקבלו|נמצאו)/.test(countLine.textContent);
 
     const wordEntries = [];
     const idioms = [];
 
-    anchors.forEach((a, i) => {
+    doc.querySelectorAll(".sr_e").forEach(entryEl => {
+      const titleAnchor = entryEl.querySelector("a.sr_e_t");
+      if (!titleAnchor) return;
+
       let entryUrl = "";
-      try { entryUrl = new URL(a.getAttribute("href"), "https://milog.co.il").href; } catch (e) { /* ignore */ }
-      const headword = a.textContent.trim();
+      try { entryUrl = new URL(titleAnchor.getAttribute("href"), "https://milog.co.il").href; } catch (e) { /* ignore */ }
 
-      // Text right after the anchor, up to the next anchor or a hard break,
-      // is where milog puts the POS/root suffix for word senses.
-      let trailingText = "";
-      let node = a.nextSibling;
-      let steps = 0;
-      while (node && steps < 6) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "A") break;
-        trailingText += node.textContent || "";
-        node = node.nextSibling;
-        steps++;
+      // The POS/root/binyan span sits inside the anchor for word entries;
+      // idioms have plain text with no nested span at all. Verbs pack both
+      // root ("שורש: הל\"כ") and binyan ("בניין: פעל") into the same span
+      // as the POS, comma-separated — split both out so the POS badge just
+      // shows the part of speech and the grammar line shows root + binyan.
+      const posSpan = titleAnchor.querySelector("span");
+      let headword = titleAnchor.textContent.trim();
+      let posTag = "";
+      let grammarLine = "";
+
+      if (posSpan) {
+        const fullPos = posSpan.textContent.trim();
+        headword = headword.replace(posSpan.textContent, "").replace(/[-–]\s*$/, "").trim();
+        const rootMatch = fullPos.match(/שורש:\s*[^\s,]+/);
+        const binyanMatch = fullPos.match(/בניין:\s*[^\s,]+/);
+        grammarLine = [rootMatch ? rootMatch[0] : "", binyanMatch ? binyanMatch[0] : ""].filter(Boolean).join(" · ");
+        posTag = fullPos
+          .replace(/,?\s*שורש:\s*[^\s,]+/, "")
+          .replace(/,?\s*בניין:\s*[^\s,]+/, "")
+          .trim();
       }
-      trailingText = trailingText.trim();
-      const posMatch = trailingText.match(MILOG_POS_PATTERN);
 
-      // Collect numbered-definition-looking lines between this anchor and
-      // the next entry anchor as a rough definitions list.
-      const nextAnchor = anchors[i + 1];
-      let betweenText = "";
-      if (a.parentElement) {
-        let n = a;
-        let guard = 0;
-        while (n && guard < 400) {
-          n = n.nextSibling || (n.parentElement && n.parentElement !== doc.body ? n.parentElement.nextSibling : null);
-          if (!n || n === nextAnchor) break;
-          if (n.nodeType === Node.ELEMENT_NODE && n.contains && nextAnchor && n.contains(nextAnchor)) break;
-          betweenText += (n.textContent || "") + "\n";
-          guard++;
-        }
-      }
-      const definitions = (betweenText.match(/\d+\s*[-.]\s*[^\n]+/g) || [])
-        .map(s => s.trim())
-        .slice(0, 12);
+      const paras = Array.from(entryEl.querySelectorAll(".sr_e_para"));
 
-      if (posMatch) {
+      const buildDef = p => {
+        const txtEl = p.querySelector(".sr_e_txt");
+        if (!txtEl) return null;
+        const clone = txtEl.cloneNode(true);
+        const examples = Array.from(clone.querySelectorAll(".sr_example")).map(ex => ex.textContent.trim());
+        clone.querySelectorAll(".sr_example").forEach(ex => ex.remove());
+        const text = clone.textContent.trim();
+        const glosses = Array.from(p.querySelectorAll(".sr_e_trans a")).map(a => a.textContent.trim());
+        return { text, examples, glosses };
+      };
+
+      if (posSpan) {
+        const definitions = paras.map(buildDef).filter(Boolean);
+
+        // The search-results page truncates entries with many senses, e.g.
+        // "ראו 4 פירושים נוספים" ("see 4 more definitions") linking back to
+        // this same entry's own page. Surface that as a hint rather than
+        // silently showing an incomplete list.
+        const showMoreLink = entryEl.querySelector(".sr_show_more");
+        const moreMatch = showMoreLink ? showMoreLink.textContent.match(/\d+/) : null;
+
         wordEntries.push({
           headword,
           entryUrl,
-          posTag: trailingText.replace(/^\s*[-–]\s*/, ""),
+          posTag,
+          grammarLine,
           definitions,
-          expanded: false,
+          hasMore: !!showMoreLink,
+          moreCount: moreMatch ? parseInt(moreMatch[0], 10) : 0,
           expandData: null
         });
       } else {
-        idioms.push({
-          headword,
-          entryUrl,
-          definition: definitions[0] ? definitions[0].replace(/^\d+\s*[-.]\s*/, "") : ""
-        });
+        // Idioms can have multiple numbered sub-senses of their own (e.g.
+        // "הוֹלֵךְ ופוחת" = both "diminishing" AND "morally declining"),
+        // same .sr_e_para/.sr_e_index structure as a word entry's senses —
+        // collect all of them, not just the first.
+        const subDefs = paras.map(buildDef).filter(Boolean);
+        idioms.push({ headword, entryUrl, subDefs });
       }
     });
 
     return { query, found: !noResults && (wordEntries.length > 0 || idioms.length > 0), wordEntries, idioms };
   }
 
-  // Parses an individual entry page (milog.co.il/word/e_####), which milog
-  // inlines everything into: definitions again, synonyms, the full idiom
-  // list, and a grammar block. Same caveat as above — best-effort patterns,
-  // not verified selectors.
+  // Parses an individual entry page (milog.co.il/word/e_####). Verified
+  // against a real fetch of https://milog.co.il/שלום/e_2839. Every section
+  // (definitions/synonyms/idioms/grammar) is a <div class="ent_area">, and
+  // which section it is can be told apart by the URL suffix on its heading
+  // link: bare "/e_####" = definitions, "/נרדפות" = synonyms, "/ביטויים" =
+  // idioms, "/דקדוק" = grammar. All sections share the same
+  // .ent_para/.ent_para_index/.ent_para_text markup. Milog's "show more"
+  // idioms (wrapped in .ent_hidden, revealed on click in the real site) are
+  // still present in the raw HTML — just CSS-hidden — so querySelectorAll
+  // picks them up too; a single fetch really does get everything.
+  // NOTE: no "antonyms" section was observed for שלום — that part of the
+  // original mockup design was speculative and isn't implemented here.
   function parseMilogEntryHtml(html) {
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const bodyText = doc.body ? doc.body.textContent : "";
 
+    let definitions = [];
     const synonyms = [];
-    const synMatches = bodyText.match(/מילים נרדפות[\s\S]{0,600}?(?=צירופים וביטויים|דקדוק ותחביר|$)/);
-    if (synMatches) {
-      (synMatches[0].match(/\d+\s*[-.]\s*[^\n]+/g) || []).forEach(line => {
-        synonyms.push(line.trim());
-      });
-    }
-
     const idioms = [];
-    Array.from(doc.querySelectorAll("a[href]")).forEach(a => {
-      try {
-        const u = new URL(a.getAttribute("href"), "https://milog.co.il");
-        if (/\/e_\d+$/.test(u.pathname) && a.textContent.trim()) {
-          idioms.push({ headword: a.textContent.trim(), entryUrl: u.href });
-        }
-      } catch (e) { /* ignore */ }
+    const grammar = [];
+
+    doc.querySelectorAll(".ent_area").forEach(areaEl => {
+      const titleLink = areaEl.querySelector(".ent_bar_title a");
+      const href = titleLink ? (titleLink.getAttribute("href") || "") : "";
+      let kind = "definitions";
+      if (/\/נרדפות(\/|\?|$)/.test(href)) kind = "synonyms";
+      else if (/\/ביטויים(\/|\?|$)/.test(href)) kind = "idioms";
+      else if (/\/דקדוק(\/|\?|$)/.test(href)) kind = "grammar";
+
+      const paras = Array.from(areaEl.querySelectorAll(".ent_para"));
+
+      if (kind === "definitions") {
+        definitions = paras.map(p => {
+          const txtEl = p.querySelector(".ent_para_text");
+          if (!txtEl) return null;
+          const clone = txtEl.cloneNode(true);
+          const examples = Array.from(clone.querySelectorAll(".ent_example")).map(ex => ex.textContent.trim());
+          clone.querySelectorAll(".ent_example").forEach(ex => ex.remove());
+          return { text: clone.textContent.trim(), examples };
+        }).filter(Boolean);
+      } else if (kind === "synonyms") {
+        paras.forEach(p => {
+          const idxEl = p.querySelector(".ent_para_index");
+          const txtEl = p.querySelector(".ent_para_text");
+          if (!txtEl || !txtEl.textContent.trim()) return;
+          synonyms.push({ senseNum: idxEl ? idxEl.textContent.trim() : "", text: txtEl.textContent.trim() });
+        });
+      } else if (kind === "idioms") {
+        paras.forEach(p => {
+          const titleA = p.querySelector(".ent_para_title a");
+          const txtEl = p.querySelector(".ent_para_text");
+          if (!titleA || !txtEl) return;
+          let entryUrl = "";
+          try { entryUrl = new URL(titleA.getAttribute("href"), "https://milog.co.il").href; } catch (e) { /* ignore */ }
+          const headword = titleA.textContent.trim();
+          const definition = txtEl.textContent.trim().replace(headword, "").replace(/^\s*[-–]\s*/, "").trim();
+          idioms.push({ headword, entryUrl, definition });
+        });
+      } else if (kind === "grammar") {
+        paras.forEach(p => {
+          const titleEl = p.querySelector(".ent_para_title");
+          const txtEl = p.querySelector(".ent_para_text");
+          if (!txtEl) return;
+          const label = titleEl ? titleEl.textContent.trim() : "";
+          // Grammar rows are either plain text ("מין - זכר") or a
+          // comma-separated list of linked inflected forms, where each
+          // link's title attribute holds a plain-language gloss of that
+          // form (e.g. title="רבים" for the plural, title="השלום שלו" for
+          // "his peace").
+          const forms = Array.from(txtEl.querySelectorAll("a.in_link")).map(a => ({
+            text: a.textContent.trim(),
+            gloss: a.getAttribute("title") || ""
+          }));
+          let value = "";
+          if (!forms.length) {
+            const clone = txtEl.cloneNode(true);
+            const t = clone.querySelector(".ent_para_title");
+            if (t) t.remove();
+            value = clone.textContent.trim().replace(/^\s*[-–]\s*/, "").trim();
+          }
+          grammar.push({ label, value, forms });
+        });
+      }
     });
 
-    const grammarLines = [];
-    const gramMatch = bodyText.match(/דקדוק ותחביר[\s\S]{0,1500}/);
-    if (gramMatch) {
-      gramMatch[0].split("\n").map(s => s.trim()).filter(Boolean).slice(1, 40).forEach(line => grammarLines.push(line));
-    }
-
-    return { synonyms, idioms, grammarLines };
+    return { definitions, synonyms, idioms, grammar };
   }
 
   function milogIdiomsGridHtml(idioms) {
@@ -2305,7 +2368,9 @@
           ${idioms.map(idiom => `
             <li data-word="${escapeHtml(idiom.headword)}">
               <span class="milog-phrase-head">${escapeHtml(idiom.headword)}</span>
-              ${idiom.definition ? `<span class="milog-phrase-def">${escapeHtml(idiom.definition)}</span>` : ""}
+              ${idiom.subDefs.length > 1
+                ? idiom.subDefs.map((d, i) => `<span class="milog-phrase-def">${i + 1}. ${escapeHtml(d.text)}</span>`).join("")
+                : (idiom.subDefs[0] ? `<span class="milog-phrase-def">${escapeHtml(idiom.subDefs[0].text)}</span>` : "")}
             </li>`).join("")}
         </ul>
       </div>`;
@@ -2315,6 +2380,19 @@
     return `<div class="milog-expand-panel"><div class="milog-expand-loading">Loading…</div></div>`;
   }
 
+  function milogDefinitionListHtml(definitions) {
+    if (!definitions.length) return `<div class="empty-state" style="padding:20px;">No definitions parsed from this entry.</div>`;
+    return `
+      <ul class="sense-list">
+        ${definitions.map(d => `
+          <li>
+            <span class="sense-display">${escapeHtml(d.text)}</span>
+            ${d.examples.length ? `<span class="sense-def">${d.examples.map(escapeHtml).join(" · ")}</span>` : ""}
+            ${d.glosses.length ? `<ul class="gloss-sublist">${d.glosses.map(g => `<li class="sense-gloss">${escapeHtml(g)}</li>`).join("")}</ul>` : ""}
+          </li>`).join("")}
+      </ul>`;
+  }
+
   function milogWordEntryCardHtml(entry, index) {
     return `
       <div class="entry-card" data-milog-index="${index}">
@@ -2322,16 +2400,34 @@
         <div class="entry-body">
           <div class="headword-row milog-expandable" data-expand-index="${index}">
             <span class="headword">${escapeHtml(entry.headword)}</span>
-            <span class="pos-tag">${escapeHtml(entry.posTag)}</span>
+            ${entry.posTag ? `<span class="pos-tag">${escapeHtml(entry.posTag)}</span>` : ""}
             <span class="milog-expand-hint">tap for more</span>
             <span class="milog-expand-chevron">▾</span>
           </div>
-          ${entry.definitions.length ? `
-          <ol class="sense-list">
-            ${entry.definitions.map(d => `<li><span class="sense-display">${escapeHtml(d.replace(/^\d+\s*[-.]\s*/, ""))}</span></li>`).join("")}
-          </ol>` : `<div class="empty-state" style="padding:20px;">No definitions parsed from this entry — try "View raw response" and adjust the parser.</div>`}
+          ${entry.grammarLine ? `<div class="milog-root">${escapeHtml(entry.grammarLine)}</div>` : ""}
+          ${milogDefinitionListHtml(entry.definitions)}
+          ${entry.hasMore ? `<div class="milog-expand-hint" style="margin-top:8px; text-transform:none; font-size:0.78rem;">+${entry.moreCount} more definitions — tap headword for the full entry</div>` : ""}
           ${milogExpandPanelHtml()}
         </div>
+      </div>`;
+  }
+
+  function milogGrammarRowHtml(g, rowIndex) {
+    if (!g.forms.length) {
+      return `<div class="milog-grammar-plain-row"><span class="milog-conj-tense-label">${escapeHtml(g.label)}</span><span>${escapeHtml(g.value)}</span></div>`;
+    }
+    const truncateAt = 6;
+    const shown = g.forms.slice(0, truncateAt);
+    const rest = g.forms.slice(truncateAt);
+    const formChip = f => `<span class="milog-conj-form">${escapeHtml(f.text)}${f.gloss ? `<span class="milog-person-tag">${escapeHtml(f.gloss)}</span>` : ""}</span>`;
+    return `
+      <div class="milog-conj-group">
+        <div class="milog-conj-tense-label">${escapeHtml(g.label)}</div>
+        <div class="milog-conj-forms-row">
+          ${shown.map(formChip).join("")}
+          ${rest.length ? `<span class="milog-collapsed-forms" data-row="${rowIndex}">${rest.map(formChip).join("")}</span>` : ""}
+        </div>
+        ${rest.length ? `<button type="button" class="milog-show-all-btn" data-toggle-row="${rowIndex}">show all ${g.forms.length}</button>` : ""}
       </div>`;
   }
 
@@ -2371,15 +2467,20 @@
           const parsed = parseMilogEntryHtml(html);
           entry.expandData = parsed;
           panel.innerHTML = `
-            ${parsed.grammarLines.length ? `
+            ${entry.hasMore && parsed.definitions.length ? `
+            <div class="milog-subsection">
+              <div class="section-label">All definitions (${parsed.definitions.length})</div>
+              ${milogDefinitionListHtml(parsed.definitions)}
+            </div>` : ""}
+            ${parsed.grammar.length ? `
             <div class="milog-subsection">
               <div class="section-label">Grammar</div>
-              <div class="milog-conj-forms-row">${parsed.grammarLines.map(l => `<span class="milog-conj-form">${escapeHtml(l)}</span>`).join("")}</div>
+              ${parsed.grammar.map((g, i) => milogGrammarRowHtml(g, i)).join("")}
             </div>` : ""}
             ${parsed.synonyms.length ? `
             <div class="milog-subsection">
-              <div class="section-label">Synonyms</div>
-              ${parsed.synonyms.map(s => `<div class="milog-synonym-row">${escapeHtml(s)}</div>`).join("")}
+              <div class="section-label">Synonyms (by sense)</div>
+              ${parsed.synonyms.map(s => `<div class="milog-synonym-row">${s.senseNum ? `<span class="milog-synonym-sense-num">${escapeHtml(s.senseNum)}</span>` : ""}${escapeHtml(s.text)}</div>`).join("")}
             </div>` : ""}
             ${parsed.idioms.length ? `
             <div class="milog-subsection">
@@ -2388,8 +2489,17 @@
                 ${parsed.idioms.map(idm => `<span class="chip" data-word="${escapeHtml(idm.headword)}">${escapeHtml(idm.headword)}</span>`).join("")}
               </div>
             </div>` : ""}
-            ${!parsed.grammarLines.length && !parsed.synonyms.length && !parsed.idioms.length ? `<div class="milog-expand-error">Couldn't parse anything useful from this entry page — try "View raw response" and adjust the parser.</div>` : ""}
+            ${!parsed.grammar.length && !parsed.synonyms.length && !parsed.idioms.length ? `<div class="milog-expand-error">Couldn't parse anything useful from this entry page — try "View raw response" and adjust the parser.</div>` : ""}
           `;
+          panel.querySelectorAll("[data-toggle-row]").forEach(btn => {
+            if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+            btn.addEventListener("click", e => {
+              e.stopPropagation();
+              const rowSpan = panel.querySelector(`.milog-collapsed-forms[data-row="${btn.dataset.toggleRow}"]`);
+              const nowOpen = rowSpan.classList.toggle("open");
+              btn.textContent = nowOpen ? "show less" : btn.dataset.label;
+            });
+          });
           panel.querySelectorAll(".chip[data-word]").forEach(chip => {
             chip.addEventListener("click", e => {
               e.stopPropagation();
