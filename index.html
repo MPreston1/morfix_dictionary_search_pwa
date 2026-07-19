@@ -450,6 +450,12 @@
     color: var(--ink-soft);
     margin-inline-start: 6px;
   }
+  .conj-table-wrap .transcription b,
+  .conj-table-wrap .transcription strong,
+  .pealim-form-transcription b,
+  .pealim-form-transcription strong {
+    color: var(--brass);
+  }
   .pealim-form-meaning { display: block; font-size: 0.85rem; color: var(--ink-soft); margin-top: 2px; }
   .pealim-form-label {
     font-family: var(--font-mono);
@@ -1679,9 +1685,13 @@
         div.querySelectorAll(".verb-search-forms > .vf-search-result").forEach(f => {
           const hebrewContainer = f.querySelector(".vf-search-hebrew");
           if (!hebrewContainer) return;
+          const transcriptionSourceEl = hebrewContainer.querySelector(".transcription");
+          // Keep the sanitized markup (e.g. the bolded stress letter),
+          // not just the plain text, so it can render the same way
+          // pealim.com shows it.
+          const transcription = transcriptionSourceEl ? sanitizedInnerHtml(transcriptionSourceEl) : "";
           const clone = hebrewContainer.cloneNode(true);
           const transcriptionEl = clone.querySelector(".transcription");
-          const transcription = transcriptionEl ? transcriptionEl.textContent.trim() : "";
           if (transcriptionEl) transcriptionEl.remove();
           const audioEl = clone.querySelector(".audio-play");
           if (audioEl) audioEl.remove();
@@ -1806,6 +1816,19 @@
       if (cleaned) el.appendChild(cleaned);
     });
     return el;
+  }
+
+  // Returns a sanitized HTML *string* for a node's contents (reusing the
+  // same allowlist as the conjugation table), so markup like the bolded
+  // stress-letter <b> tag pealim.com puts inside ".transcription" survives
+  // instead of being flattened to plain text.
+  function sanitizedInnerHtml(node) {
+    const cleaned = sanitizeNode(node);
+    if (!cleaned) return "";
+    if (cleaned.nodeType === Node.ELEMENT_NODE) return cleaned.innerHTML;
+    const container = document.createElement("div");
+    container.appendChild(cleaned);
+    return container.innerHTML;
   }
 
   function extractConjugationTableNode(html) {
@@ -1993,7 +2016,7 @@
       <li>
         <div dir="rtl">
           <span class="pealim-form-hebrew">${escapeHtml(f.hebrew)}</span>
-          ${f.transcription ? `<span class="pealim-form-transcription">${escapeHtml(f.transcription)}</span>` : ""}
+          ${f.transcription ? `<span class="pealim-form-transcription">${f.transcription}</span>` : ""}
         </div>
         ${f.label ? `<span class="pealim-form-label">${escapeHtml(f.label)}</span>` : ""}
       </li>`).join("")}</ul>` : "";
@@ -2362,7 +2385,7 @@
   function milogIdiomsGridHtml(idioms) {
     if (!idioms.length) return "";
     return `
-      <div class="milog-idiom-block">
+      <div class="milog-idiom-block" dir="rtl">
         <div class="section-label">Idioms &amp; expressions &middot; tap to search</div>
         <ul class="milog-idiom-list">
           ${idioms.map(idiom => `
@@ -2377,13 +2400,13 @@
   }
 
   function milogExpandPanelHtml() {
-    return `<div class="milog-expand-panel"><div class="milog-expand-loading">Loading…</div></div>`;
+    return `<div class="milog-expand-panel" dir="rtl"><div class="milog-expand-loading">Loading…</div></div>`;
   }
 
   function milogDefinitionListHtml(definitions) {
     if (!definitions.length) return `<div class="empty-state" style="padding:20px;">No definitions parsed from this entry.</div>`;
     return `
-      <ul class="sense-list">
+      <ul class="sense-list" dir="rtl">
         ${definitions.map(d => `
           <li>
             <span class="sense-display">${escapeHtml(d.text)}</span>
@@ -2398,13 +2421,13 @@
       <div class="entry-card" data-milog-index="${index}">
         <div class="entry-tab">MILOG</div>
         <div class="entry-body">
-          <div class="headword-row milog-expandable" data-expand-index="${index}">
+          <div class="headword-row milog-expandable" data-expand-index="${index}" dir="rtl">
             <span class="headword">${escapeHtml(entry.headword)}</span>
             ${entry.posTag ? `<span class="pos-tag">${escapeHtml(entry.posTag)}</span>` : ""}
             <span class="milog-expand-hint">tap for more</span>
             <span class="milog-expand-chevron">▾</span>
           </div>
-          ${entry.grammarLine ? `<div class="milog-root">${escapeHtml(entry.grammarLine)}</div>` : ""}
+          ${entry.grammarLine ? `<div class="milog-root" dir="rtl">${escapeHtml(entry.grammarLine)}</div>` : ""}
           ${milogDefinitionListHtml(entry.definitions)}
           ${entry.hasMore ? `<div class="milog-expand-hint" style="margin-top:8px; text-transform:none; font-size:0.78rem;">+${entry.moreCount} more definitions — tap headword for the full entry</div>` : ""}
           ${milogExpandPanelHtml()}
@@ -2414,14 +2437,14 @@
 
   function milogGrammarRowHtml(g, rowIndex) {
     if (!g.forms.length) {
-      return `<div class="milog-grammar-plain-row"><span class="milog-conj-tense-label">${escapeHtml(g.label)}</span><span>${escapeHtml(g.value)}</span></div>`;
+      return `<div class="milog-grammar-plain-row" dir="rtl"><span class="milog-conj-tense-label">${escapeHtml(g.label)}</span><span>${escapeHtml(g.value)}</span></div>`;
     }
     const truncateAt = 6;
     const shown = g.forms.slice(0, truncateAt);
     const rest = g.forms.slice(truncateAt);
     const formChip = f => `<span class="milog-conj-form">${escapeHtml(f.text)}${f.gloss ? `<span class="milog-person-tag">${escapeHtml(f.gloss)}</span>` : ""}</span>`;
     return `
-      <div class="milog-conj-group">
+      <div class="milog-conj-group" dir="rtl">
         <div class="milog-conj-tense-label">${escapeHtml(g.label)}</div>
         <div class="milog-conj-forms-row">
           ${shown.map(formChip).join("")}
